@@ -4,7 +4,7 @@ from .utils import ScrapingUtils, APIHelper
 
 # Import portal scrapers here as they're created
 from .portal_scrapers.github_scraper import GitHubScraper
-# from .portal_scrapers.jira_scraper import JiraScraper
+from .portal_scrapers.jira_scraper import JiraScraper
 # from .portal_scrapers.trello_scraper import TrelloScraper
 
 __all__ = [

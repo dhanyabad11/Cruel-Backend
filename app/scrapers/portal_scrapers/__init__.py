@@ -6,5 +6,6 @@ like GitHub, Jira, Trello, etc.
 """
 
 from .github_scraper import GitHubScraper
+from .jira_scraper import JiraScraper
 
-__all__ = ['GitHubScraper']
+__all__ = ['GitHubScraper', 'JiraScraper']
