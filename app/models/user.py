@@ -24,6 +24,8 @@ class User(Base):
     # Relationships
     deadlines = relationship("Deadline", back_populates="user", cascade="all, delete-orphan")
     portals = relationship("Portal", back_populates="user", cascade="all, delete-orphan")
+    notifications = relationship("Notification", back_populates="user", cascade="all, delete-orphan")
+    notification_preferences = relationship("NotificationPreference", back_populates="user", uselist=False, cascade="all, delete-orphan")
     
     def verify_password(self, password: str) -> bool:
         return pwd_context.verify(password, self.hashed_password)

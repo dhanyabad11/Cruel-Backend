@@ -50,6 +50,7 @@ class Deadline(Base):
     # Relationships
     user = relationship("User", back_populates="deadlines")
     portal = relationship("Portal", back_populates="deadlines")
+    notifications = relationship("Notification", back_populates="deadline", cascade="all, delete-orphan")
     
     def __repr__(self):
         return f"<Deadline(id={self.id}, title={self.title}, due_date={self.due_date})>"
