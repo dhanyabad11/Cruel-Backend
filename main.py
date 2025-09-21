@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.routes import auth_routes, deadline_routes, portal_routes, notification_routes
+from app.routes import auth_routes, deadline_routes, portal_routes, notification_routes, task_routes
 from app.config import settings
 from app.services.notification_service import initialize_notification_service
 import uvicorn
@@ -41,6 +41,7 @@ app.include_router(auth_routes.router, prefix="/api/auth", tags=["authentication
 app.include_router(deadline_routes.router, prefix="/api/deadlines", tags=["deadlines"])
 app.include_router(portal_routes.router, prefix="/api/portals", tags=["portals"])
 app.include_router(notification_routes.router, prefix="/api", tags=["notifications"])
+app.include_router(task_routes.router, prefix="/api", tags=["tasks"])
 
 @app.get("/")
 async def root():
