@@ -1,6 +1,8 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.routes import auth_routes, deadline_routes, portal_routes, notification_routes, task_routes
+from app.routes import auth_routes, notification_routes, task_routes
+from app.routes import deadline_routes_sqlite as deadline_routes
+from app.routes import portal_routes_sqlite as portal_routes
 from app.config import settings
 from app.services.notification_service import initialize_notification_service
 import uvicorn

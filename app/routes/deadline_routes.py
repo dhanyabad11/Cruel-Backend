@@ -16,11 +16,10 @@ async def get_deadlines(
     limit: int = Query(100, ge=1, le=100),
     status: Optional[str] = Query(None),
     priority: Optional[str] = Query(None),
-    current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ):
     """Get all deadlines for the current user"""
-    query = db.query(Deadline).filter(Deadline.user_id == current_user.id)
+    query = db.query(Deadline)
     
     # Apply filters
     if status:
