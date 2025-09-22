@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.routes import auth_routes, notification_routes, task_routes
 from app.routes import deadline_routes_sqlite as deadline_routes
 from app.routes import portal_routes_sqlite as portal_routes
+from app.routes import auth_routes_supabase
 from app.config import settings
 from app.services.notification_service import initialize_notification_service
 import uvicorn
@@ -16,7 +17,9 @@ logger = logging.getLogger(__name__)
 app = FastAPI(
     title="AI Cruel - Deadline Manager",
     description="A production-level deadline management system with portal scraping and smart notifications",
-    version="1.0.0"
+    version="2.0.0",
+    docs_url="/docs",
+    redoc_url="/redoc"
 )
 
 # CORS middleware
@@ -39,7 +42,7 @@ except Exception as e:
     logger.warning(f"Failed to initialize notification service: {e}")
 
 # Include routers
-app.include_router(auth_routes.router, prefix="/api/auth", tags=["authentication"])
+app.include_router(auth_routes_supabase.router, prefix="/api/auth", tags=["authentication"])
 app.include_router(deadline_routes.router, prefix="/api/deadlines", tags=["deadlines"])
 app.include_router(portal_routes.router, prefix="/api/portals", tags=["portals"])
 app.include_router(notification_routes.router, prefix="/api", tags=["notifications"])
