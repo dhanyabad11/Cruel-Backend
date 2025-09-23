@@ -1,9 +1,11 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 from app.routes import auth_routes, notification_routes, task_routes
 from app.routes import deadline_routes_sqlite as deadline_routes
 from app.routes import portal_routes_sqlite as portal_routes
-from app.routes import auth_routes_supabase
+from app.routes import auth_routes_supabase, whatsapp_routes
 from app.config import settings
 from app.services.notification_service import initialize_notification_service
 import uvicorn
@@ -47,10 +49,15 @@ app.include_router(deadline_routes.router, prefix="/api/deadlines", tags=["deadl
 app.include_router(portal_routes.router, prefix="/api/portals", tags=["portals"])
 app.include_router(notification_routes.router, prefix="/api", tags=["notifications"])
 app.include_router(task_routes.router, prefix="/api", tags=["tasks"])
+app.include_router(whatsapp_routes.router, tags=["whatsapp"])
 
 @app.get("/")
 async def root():
     return {"message": "AI Cruel - Deadline Manager API", "version": "1.0.0"}
+
+@app.get("/test")
+async def serve_test_page():
+    return FileResponse("whatsapp_test.html")
 
 @app.get("/health")
 async def health_check():
