@@ -6,10 +6,10 @@ This document describes the database management system for AI Cruel, including m
 
 The AI Cruel database system uses SQLite with a custom migration system to handle schema changes and data management. The system includes:
 
-- **Migration System**: Version-controlled database schema changes
-- **Backup & Restore**: Database backup and recovery tools  
-- **Statistics & Monitoring**: Database health and usage statistics
-- **Maintenance**: Cleanup and optimization tools
+-   **Migration System**: Version-controlled database schema changes
+-   **Backup & Restore**: Database backup and recovery tools
+-   **Statistics & Monitoring**: Database health and usage statistics
+-   **Maintenance**: Cleanup and optimization tools
 
 ## 🔄 Migration System
 
@@ -44,11 +44,11 @@ def migration_name(cursor):
 
 ### Current Migrations
 
-| Version | Description | Status |
-|---------|-------------|---------|
-| 001 | Create enhanced database schema | ✅ Applied |
-| 002 | Add sample data for testing | ✅ Applied |
-| 003 | Update existing schema to match models | ✅ Applied |
+| Version | Description                            | Status     |
+| ------- | -------------------------------------- | ---------- |
+| 001     | Create enhanced database schema        | ✅ Applied |
+| 002     | Add sample data for testing            | ✅ Applied |
+| 003     | Update existing schema to match models | ✅ Applied |
 
 ## 💾 Database Management
 
@@ -85,106 +85,113 @@ python3 db_manager.py clean --days 90
 ## 📊 Current Database Schema
 
 ### Users Table
-- **id**: Primary key
-- **email**: Unique user email
-- **hashed_password**: Bcrypt hashed password
-- **full_name**: User's display name
-- **phone**: Phone number for notifications
-- **is_active**: Account status
-- **is_verified**: Email/phone verification status
-- **notification_preferences**: JSON string with user preferences
-- **created_at**: Account creation timestamp
-- **updated_at**: Last modification timestamp
+
+-   **id**: Primary key
+-   **email**: Unique user email
+-   **hashed_password**: Bcrypt hashed password
+-   **full_name**: User's display name
+-   **phone**: Phone number for notifications
+-   **is_active**: Account status
+-   **is_verified**: Email/phone verification status
+-   **notification_preferences**: JSON string with user preferences
+-   **created_at**: Account creation timestamp
+-   **updated_at**: Last modification timestamp
 
 ### Deadlines Table
-- **id**: Primary key
-- **user_id**: Foreign key to users table
-- **title**: Deadline title (max 500 chars)
-- **description**: Detailed description
-- **due_date**: Deadline date and time
-- **priority**: low, medium, high, critical
-- **status**: pending, in_progress, completed, overdue
-- **portal_id**: Foreign key to portals table
-- **portal_task_id**: External system ID
-- **portal_url**: Link to original task
-- **reminder_sent**: Notification tracking
-- **reminder_count**: Number of reminders sent
-- **last_reminder_sent**: Last reminder timestamp
-- **estimated_hours**: Time estimation
-- **actual_hours**: Actual time spent
-- **tags**: JSON array of tags
-- **created_at**: Creation timestamp
-- **updated_at**: Last modification timestamp
+
+-   **id**: Primary key
+-   **user_id**: Foreign key to users table
+-   **title**: Deadline title (max 500 chars)
+-   **description**: Detailed description
+-   **due_date**: Deadline date and time
+-   **priority**: low, medium, high, critical
+-   **status**: pending, in_progress, completed, overdue
+-   **portal_id**: Foreign key to portals table
+-   **portal_task_id**: External system ID
+-   **portal_url**: Link to original task
+-   **reminder_sent**: Notification tracking
+-   **reminder_count**: Number of reminders sent
+-   **last_reminder_sent**: Last reminder timestamp
+-   **estimated_hours**: Time estimation
+-   **actual_hours**: Actual time spent
+-   **tags**: JSON array of tags
+-   **created_at**: Creation timestamp
+-   **updated_at**: Last modification timestamp
 
 ### Portals Table
-- **id**: Primary key  
-- **user_id**: Foreign key to users table
-- **name**: Portal display name
-- **portal_type**: github, jira, trello, whatsapp, manual
-- **url**: Portal URL
-- **credentials**: Encrypted JSON credentials
-- **config**: JSON configuration
-- **is_active**: Portal status
-- **last_sync**: Last synchronization time
-- **sync_status**: idle, syncing, error, success
-- **last_error**: Last error message
-- **sync_count**: Number of sync operations
-- **created_at**: Creation timestamp
-- **updated_at**: Last modification timestamp
+
+-   **id**: Primary key
+-   **user_id**: Foreign key to users table
+-   **name**: Portal display name
+-   **portal_type**: github, jira, trello, whatsapp, manual
+-   **url**: Portal URL
+-   **credentials**: Encrypted JSON credentials
+-   **config**: JSON configuration
+-   **is_active**: Portal status
+-   **last_sync**: Last synchronization time
+-   **sync_status**: idle, syncing, error, success
+-   **last_error**: Last error message
+-   **sync_count**: Number of sync operations
+-   **created_at**: Creation timestamp
+-   **updated_at**: Last modification timestamp
 
 ## 🔧 Development Workflow
 
 ### Adding New Features
 
 1. **Create Migration**: Use the migration system for schema changes
-   ```bash
-   python3 migrate.py --create "Add feature X table"
-   ```
+
+    ```bash
+    python3 migrate.py --create "Add feature X table"
+    ```
 
 2. **Update Models**: Modify SQLAlchemy models in `app/models/`
 
 3. **Update Schemas**: Add Pydantic schemas in `app/schemas/`
 
 4. **Test Migration**: Apply and test migration
-   ```bash
-   python3 migrate.py
-   python3 db_manager.py validate
-   ```
+
+    ```bash
+    python3 migrate.py
+    python3 db_manager.py validate
+    ```
 
 5. **Create Backup**: Always backup before production deployment
-   ```bash
-   python3 db_manager.py backup
-   ```
+    ```bash
+    python3 db_manager.py backup
+    ```
 
 ### Database Maintenance Schedule
 
-- **Daily**: Automated backup (in production)
-- **Weekly**: Statistics review and performance monitoring
-- **Monthly**: Data cleanup and optimization
-- **Before Updates**: Manual backup and validation
+-   **Daily**: Automated backup (in production)
+-   **Weekly**: Statistics review and performance monitoring
+-   **Monthly**: Data cleanup and optimization
+-   **Before Updates**: Manual backup and validation
 
 ## 📈 Performance Optimization
 
 ### Indexes
 
 The system includes optimized indexes for:
-- User lookups by email
-- Deadline queries by user_id, due_date, and status
-- Portal queries by user_id
-- Notification queries by user_id and deadline_id
+
+-   User lookups by email
+-   Deadline queries by user_id, due_date, and status
+-   Portal queries by user_id
+-   Notification queries by user_id and deadline_id
 
 ### Query Optimization
 
-- Use proper WHERE clauses with indexed columns
-- Limit result sets with LIMIT/OFFSET for pagination
-- Use EXISTS instead of IN for subqueries
-- Consider EXPLAIN QUERY PLAN for complex queries
+-   Use proper WHERE clauses with indexed columns
+-   Limit result sets with LIMIT/OFFSET for pagination
+-   Use EXISTS instead of IN for subqueries
+-   Consider EXPLAIN QUERY PLAN for complex queries
 
 ## 🚨 Troubleshooting
 
 ### Common Issues
 
 **Migration Fails**
+
 ```bash
 # Check current schema
 sqlite3 ai_cruel.db ".schema table_name"
@@ -197,6 +204,7 @@ sqlite3 ai_cruel.db "INSERT INTO schema_migrations (version, description) VALUES
 ```
 
 **Database Corruption**
+
 ```bash
 # Check integrity
 python3 db_manager.py validate
@@ -206,6 +214,7 @@ python3 db_manager.py restore --file backup_file.db
 ```
 
 **Performance Issues**
+
 ```bash
 # Show statistics
 python3 db_manager.py stats
@@ -219,11 +228,11 @@ sqlite3 ai_cruel.db "REINDEX"
 
 ## 🔐 Security Considerations
 
-- **Credentials**: Portal credentials are stored encrypted
-- **Backups**: Ensure backups are stored securely
-- **Access Control**: Database access limited to application
-- **SQL Injection**: Always use parameterized queries
-- **Personal Data**: Follow data retention policies
+-   **Credentials**: Portal credentials are stored encrypted
+-   **Backups**: Ensure backups are stored securely
+-   **Access Control**: Database access limited to application
+-   **SQL Injection**: Always use parameterized queries
+-   **Personal Data**: Follow data retention policies
 
 ## 📝 Best Practices
 
