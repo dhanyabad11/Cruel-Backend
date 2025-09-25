@@ -11,7 +11,9 @@ from sqlalchemy.orm import Session
 from sqlalchemy import and_, desc, func, text
 
 from app.database import get_db
-from app.models import User, Deadline, Notification, NotificationPreference
+from app.models import User
+# Temporarily disabled other models
+# from app.models import User, Deadline, Notification, NotificationPreference
 from app.schemas import (
     NotificationCreate, NotificationUpdate, NotificationResponse,
     NotificationPreferenceCreate, NotificationPreferenceUpdate, NotificationPreferenceResponse,

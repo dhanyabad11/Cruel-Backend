@@ -4,9 +4,9 @@ from jose import JWTError, jwt
 from passlib.context import CryptContext
 from fastapi import HTTPException, status, Depends
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from sqlalchemy.orm import Session
+from supabase import Client
 from app.config import settings
-from app.database import get_db
+from app.database import get_supabase_client, get_supabase_admin
 from app.models.user import User
 from app.schemas.user import TokenData
 
@@ -55,37 +55,71 @@ def verify_token(token: str) -> TokenData:
     
     return token_data
 
-def authenticate_user(db: Session, email: str, password: str) -> Optional[User]:
-    """Authenticate a user with email and password"""
-    user = db.query(User).filter(User.email == email).first()
-    if not user:
+def authenticate_user_supabase(supabase: Client, email: str, password: str) -> Optional[User]:
+    """Authenticate a user with email and password using Supabase"""
+    # Get user from Supabase
+    result = supabase.table('users').select('*').eq('email', email).execute()
+    
+    if not result.data:
         return None
-    if not verify_password(password, user.hashed_password):
+    
+    user_data = result.data[0]
+    
+    # Verify password
+    if not verify_password(password, user_data['hashed_password']):
         return None
-    return user
+    
+    # Return User model
+    return User(
+        id=user_data['id'],
+        email=user_data['email'],
+        username=user_data['username'],
+        full_name=user_data.get('full_name'),
+        phone=user_data.get('phone'),
+        is_active=user_data['is_active'],
+        is_verified=user_data['is_verified'],
+        created_at=user_data.get('created_at')
+    )
 
 async def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(security),
-    db: Session = Depends(get_db)
+    supabase_admin: Client = Depends(get_supabase_admin)
 ) -> User:
-    """Get the current authenticated user"""
-    token = credentials.credentials
-    token_data = verify_token(token)
+    """Get current user from JWT token using Supabase"""
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Could not validate credentials",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
     
-    user = db.query(User).filter(User.email == token_data.email).first()
-    if user is None:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="User not found",
-            headers={"WWW-Authenticate": "Bearer"},
+    try:
+        # Verify token
+        token_data = verify_token(credentials.credentials)
+        
+        # Get user from Supabase
+        result = supabase_admin.table('users').select('*').eq('email', token_data.email).execute()
+        
+        if not result.data:
+            raise credentials_exception
+            
+        user_data = result.data[0]
+        user = User(
+            id=user_data['id'],
+            email=user_data['email'],
+            username=user_data['username'],
+            full_name=user_data.get('full_name'),
+            phone=user_data.get('phone'),
+            is_active=user_data['is_active'],
+            is_verified=user_data['is_verified'],
+            created_at=user_data.get('created_at')
         )
+    except JWTError:
+        raise credentials_exception
+    
     return user
 
 async def get_current_active_user(current_user: User = Depends(get_current_user)) -> User:
-    """Get the current authenticated and active user"""
+    """Get current active user"""
     if not current_user.is_active:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Inactive user"
-        )
+        raise HTTPException(status_code=400, detail="Inactive user")
     return current_user

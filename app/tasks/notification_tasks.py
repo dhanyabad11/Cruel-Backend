@@ -13,7 +13,9 @@ from sqlalchemy.orm import Session
 from sqlalchemy import and_, or_, func
 
 from app.database import SessionLocal
-from app.models import User, Deadline, Notification, NotificationPreference
+from app.models import User
+# Temporarily disabled other models  
+# from app.models import User, Deadline, Notification, NotificationPreference
 from app.services.notification_service import get_notification_service, NotificationType
 
 logger = logging.getLogger(__name__)

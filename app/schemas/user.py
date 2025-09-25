@@ -4,14 +4,16 @@ from datetime import datetime
 
 class UserBase(BaseModel):
     email: EmailStr
-    name: str
+    full_name: str
+    username: str
     phone: Optional[str] = None
 
 class UserCreate(UserBase):
     password: str = Field(..., min_length=8, description="Password must be at least 8 characters")
 
 class UserUpdate(BaseModel):
-    name: Optional[str] = None
+    full_name: Optional[str] = None
+    username: Optional[str] = None
     phone: Optional[str] = None
     notification_preferences: Optional[str] = None
 
@@ -20,7 +22,6 @@ class UserResponse(UserBase):
     is_active: bool
     is_verified: bool
     created_at: datetime
-    updated_at: Optional[datetime] = None
 
     class Config:
         from_attributes = True

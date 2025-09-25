@@ -13,7 +13,9 @@ from sqlalchemy.orm import Session
 from sqlalchemy import and_
 
 from app.database import SessionLocal
-from app.models import User, Portal, Deadline
+from app.models import User
+# Temporarily disabled other models
+# from app.models import User, Portal, Deadline
 from app.scrapers.scraper_registry import ScraperRegistry
 from app.scrapers.base_scraper import ScrapedDeadline
 

@@ -12,7 +12,9 @@ from sqlalchemy.orm import Session
 from sqlalchemy import and_, func, text, or_
 
 from app.database import SessionLocal
-from app.models import User, Deadline, Notification, Portal
+from app.models import User
+# Temporarily disabled other models
+# from app.models import User, Deadline, Notification, Portal
 
 logger = logging.getLogger(__name__)
 
