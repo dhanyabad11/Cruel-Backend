@@ -5,9 +5,9 @@ from app.config import settings
 
 class SupabaseConfig:
     def __init__(self):
-        self.url: str = os.getenv("SUPABASE_URL", "")
-        self.key: str = os.getenv("SUPABASE_ANON_KEY", "")
-        self.service_key: str = os.getenv("SUPABASE_SERVICE_KEY", "")
+        self.url: str = settings.SUPABASE_URL
+        self.key: str = settings.SUPABASE_ANON_KEY
+        self.service_key: str = settings.SUPABASE_SERVICE_KEY
         
         if not self.url or not self.key:
             raise ValueError("Supabase URL and ANON_KEY must be set in environment variables")

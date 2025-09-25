@@ -40,7 +40,7 @@ class Settings(BaseSettings):
     SMTP_PASSWORD: str = ""
     
     class Config:
-        env_file = ".env"
+        env_file = "/Users/dhanyabad/code2/cruel/ai-cruel/backend/.env"
         case_sensitive = True
 
 settings = Settings()
