@@ -109,6 +109,17 @@ class Notification(Base):
         self.retry_count += 1
         self.updated_at = datetime.utcnow()
 
+    
+    # User Notification Preferences Model
+    class NotificationPreference(Base):
+        __tablename__ = "notification_preferences"
+        id = Column(Integer, primary_key=True, index=True)
+        user_id = Column(Integer, ForeignKey("users.id"), unique=True)
+        preferred_method = Column(String, default="email")  # email, sms, whatsapp
+        phone_number = Column(String, nullable=True)
+        email = Column(String, nullable=True)
+        created_at = Column(DateTime, default=datetime.utcnow)
+        updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 # Add notification preferences to User model
 class NotificationPreference(Base):

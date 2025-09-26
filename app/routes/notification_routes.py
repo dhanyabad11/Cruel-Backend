@@ -13,90 +13,102 @@ async def list_notifications(
     return [NotificationResponse(**n) for n in notifications]
 
 @router.get("/{notification_id}", response_model=NotificationResponse)
-async def get_notification(
-    notification_id: int,
-    current_user: User = Depends(get_current_user),
-    supabase: Client = Depends(get_supabase_client)
-):
-    """Get a specific notification by ID from Supabase"""
-    result = supabase.table('notifications').select('*').eq('id', notification_id).eq('user_id', current_user.id).execute()
-    if not result.data:
-        raise HTTPException(status_code=404, detail="Notification not found")
-    notification = result.data[0]
-    return NotificationResponse(**notification)
 
-@router.put("/{notification_id}", response_model=NotificationResponse)
-async def update_notification(
-    notification_id: int,
-    notification_data: NotificationUpdate,
-    current_user: User = Depends(get_current_user),
-    supabase: Client = Depends(get_supabase_client)
-):
-    """Update a notification in Supabase"""
-    update_data = notification_data.dict(exclude_unset=True)
-    result = supabase.table('notifications').update(update_data).eq('id', notification_id).eq('user_id', current_user.id).execute()
-    if not result.data:
-        raise HTTPException(status_code=404, detail="Notification not found or update failed")
-    notification = result.data[0]
-    return NotificationResponse(**notification)
+# Notification Preference Routes
+from app.models.notification import NotificationPreference
+from app.schemas.notification import NotificationPreferenceCreate, NotificationPreferenceUpdate, NotificationPreferenceResponse
+from sqlalchemy.orm import Session
+from fastapi import Depends
+from datetime import datetime
 
-@router.delete("/{notification_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_notification(
-    notification_id: int,
+@router.post("/preferences", response_model=NotificationPreferenceResponse)
+async def create_notification_preferences(
+    preferences: NotificationPreferenceCreate,
     current_user: User = Depends(get_current_user),
-    supabase: Client = Depends(get_supabase_client)
+    db: Session = Depends(get_db)
 ):
-    """Delete a notification in Supabase"""
-    result = supabase.table('notifications').delete().eq('id', notification_id).eq('user_id', current_user.id).execute()
-    if not result.data:
-        raise HTTPException(status_code=404, detail="Notification not found or delete failed")
-
-@router.get("/stats/overview", response_model=NotificationStatsResponse)
-async def get_notification_stats(
-    current_user: User = Depends(get_current_user),
-    supabase: Client = Depends(get_supabase_client)
-):
-    """Get notification statistics for the current user from Supabase"""
-    result = supabase.table('notifications').select('*').eq('user_id', current_user.id).execute()
-    notifications = result.data or []
-    total = len(notifications)
-    sent = sum(1 for n in notifications if n.get('delivery_status') == 'sent')
-    pending = sum(1 for n in notifications if n.get('delivery_status') == 'pending')
-    failed = sum(1 for n in notifications if n.get('delivery_status') == 'failed')
-    return NotificationStatsResponse(
-        total=total,
-        sent=sent,
-        pending=pending,
-        failed=failed
+    """Create notification preferences for the current user"""
+    existing = db.query(NotificationPreference).filter(NotificationPreference.user_id == current_user.id).first()
+    if existing:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Notification preferences already exist. Use PUT to update.")
+    db_preferences = NotificationPreference(
+        user_id=current_user.id,
+        preferred_method=preferences.preferred_method,
+        phone_number=preferences.phone_number,
+        email=preferences.email,
+        created_at=datetime.utcnow(),
+        updated_at=datetime.utcnow()
     )
-"""
-Notification Routes
+    db.add(db_preferences)
+    db.commit()
+    db.refresh(db_preferences)
+    return NotificationPreferenceResponse(
+        id=db_preferences.id,
+        user_id=db_preferences.user_id,
+        preferred_method=db_preferences.preferred_method,
+        phone_number=db_preferences.phone_number,
+        email=db_preferences.email,
+        created_at=db_preferences.created_at.isoformat(),
+        updated_at=db_preferences.updated_at.isoformat()
+    )
 
-API endpoints for notification management and sending SMS/WhatsApp messages.
-"""
-
-from datetime import datetime, timedelta
-from typing import List, Optional
-from fastapi import APIRouter, Depends, HTTPException, Query, status
-from supabase import Client
-from app.database import get_supabase_client, get_supabase_admin
-from app.models import User
-from app.schemas import (
-    NotificationCreate, NotificationUpdate, NotificationResponse,
-    NotificationPreferenceCreate, NotificationPreferenceUpdate, NotificationPreferenceResponse,
-    SendNotificationRequest, SendDeadlineReminderRequest, SendDailySummaryRequest,
-    NotificationStatusResponse, NotificationSendResponse, NotificationListResponse, NotificationStatsResponse
-)
-from app.utils.auth import get_current_user
-from app.services.notification_service import get_notification_service, NotificationType
-
-router = APIRouter(prefix="/notifications", tags=["notifications"])
-
-
-@router.post("/send", response_model=NotificationSendResponse)
-async def send_notification(
-    request: SendNotificationRequest,
+@router.get("/preferences", response_model=NotificationPreferenceResponse)
+async def get_notification_preferences(
     current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Get notification preferences for the current user"""
+    preferences = db.query(NotificationPreference).filter(NotificationPreference.user_id == current_user.id).first()
+    if not preferences:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Notification preferences not found")
+    return NotificationPreferenceResponse(
+        id=preferences.id,
+        user_id=preferences.user_id,
+        preferred_method=preferences.preferred_method,
+        phone_number=preferences.phone_number,
+        email=preferences.email,
+        created_at=preferences.created_at.isoformat(),
+        updated_at=preferences.updated_at.isoformat()
+    )
+
+@router.put("/preferences", response_model=NotificationPreferenceResponse)
+async def update_notification_preferences(
+    preferences_update: NotificationPreferenceUpdate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Update notification preferences for the current user"""
+    preferences = db.query(NotificationPreference).filter(NotificationPreference.user_id == current_user.id).first()
+    if not preferences:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Notification preferences not found. Create them first.")
+    update_data = preferences_update.dict(exclude_unset=True)
+    for field, value in update_data.items():
+        setattr(preferences, field, value)
+    preferences.updated_at = datetime.utcnow()
+    db.commit()
+    db.refresh(preferences)
+    return NotificationPreferenceResponse(
+        id=preferences.id,
+        user_id=preferences.user_id,
+        preferred_method=preferences.preferred_method,
+        phone_number=preferences.phone_number,
+        email=preferences.email,
+        created_at=preferences.created_at.isoformat(),
+        updated_at=preferences.updated_at.isoformat()
+    )
+
+@router.delete("/preferences")
+async def delete_notification_preferences(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Delete notification preferences for the current user"""
+    preferences = db.query(NotificationPreference).filter(NotificationPreference.user_id == current_user.id).first()
+    if not preferences:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Notification preferences not found")
+    db.delete(preferences)
+    db.commit()
+    return {"message": "Notification preferences deleted successfully"}
     supabase: Client = Depends(get_supabase_client)
 ):
     """Send a custom notification using Supabase"""

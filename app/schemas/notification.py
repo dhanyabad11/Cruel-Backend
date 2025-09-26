@@ -42,6 +42,22 @@ class NotificationUpdate(BaseModel):
     failed_at: Optional[datetime] = None
 
 
+    class NotificationPreferenceBase(BaseModel):
+        preferred_method: str = Field(default="email", description="Preferred notification method: email, sms, whatsapp")
+        phone_number: Optional[str] = None
+        email: Optional[EmailStr] = None
+
+    class NotificationPreferenceCreate(NotificationPreferenceBase):
+        pass
+
+    class NotificationPreferenceUpdate(NotificationPreferenceBase):
+        pass
+
+    class NotificationPreferenceResponse(NotificationPreferenceBase):
+        id: int
+        user_id: int
+        created_at: Optional[str]
+        updated_at: Optional[str]
 class NotificationResponse(BaseModel):
     """Schema for notification response"""
     id: int
