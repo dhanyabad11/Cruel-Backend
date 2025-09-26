@@ -43,6 +43,33 @@ async def create_deadline(
     if not result.data:
         raise HTTPException(status_code=500, detail="Failed to create deadline")
     deadline = result.data[0]
+    # Send notification and email for high/urgent deadlines
+    if deadline.get('priority') in ['high', 'urgent']:
+        from app.services.notification_service import get_notification_service, NotificationType
+        from app.services.email_service import send_email
+        notification_service = get_notification_service()
+        # Fetch user phone and email
+        user_result = supabase.table('users').select('phone', 'email').eq('id', current_user.id).execute()
+        phone = None
+        email = None
+        if user_result.data:
+            phone = user_result.data[0].get('phone')
+            email = user_result.data[0].get('email')
+        if phone:
+            await notification_service.send_deadline_reminder(
+                phone_number=phone,
+                deadline_title=deadline['title'],
+                deadline_date=deadline['deadline_date'],
+                deadline_url=deadline.get('portal_url'),
+                notification_type=NotificationType.WHATSAPP if phone.startswith('whatsapp:') else NotificationType.SMS,
+                priority=deadline['priority']
+            )
+        if email:
+            await send_email(
+                to_email=email,
+                subject=f"[AI Cruel] New {deadline['priority']} Deadline: {deadline['title']}",
+                body=f"A new {deadline['priority']} deadline '{deadline['title']}' is due on {deadline['deadline_date']}.\nDetails: {deadline.get('description', '')}\nURL: {deadline.get('portal_url', '')}"
+            )
     return DeadlineResponse(**deadline)
 
 @router.get("/{deadline_id}", response_model=DeadlineResponse)

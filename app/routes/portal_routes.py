@@ -113,6 +113,7 @@ async def sync_portal(
         deadlines_updated = 0
         from app.services.notification_service import get_notification_service, NotificationType
         notification_service = get_notification_service()
+        from app.services.email_service import send_email
         for d in result.deadlines:
             # Check if deadline already exists (by portal_task_id and portal_id)
             existing = supabase.table('deadlines').select('id').eq('portal_task_id', d.portal_task_id).eq('portal_id', portal_id).execute()
@@ -138,11 +139,13 @@ async def sync_portal(
                 deadlines_created += 1
                 # Trigger notification for new/urgent deadlines
                 if notification_service and d.priority in ['high', 'urgent']:
-                    # Fetch user phone from Supabase users table
-                    user_result = supabase.table('users').select('phone').eq('id', portal['user_id']).execute()
+                    # Fetch user phone and email from Supabase users table
+                    user_result = supabase.table('users').select('phone', 'email').eq('id', portal['user_id']).execute()
                     phone = None
-                    if user_result.data and user_result.data[0].get('phone'):
-                        phone = user_result.data[0]['phone']
+                    email = None
+                    if user_result.data:
+                        phone = user_result.data[0].get('phone')
+                        email = user_result.data[0].get('email')
                     if phone:
                         await notification_service.send_deadline_reminder(
                             phone_number=phone,
@@ -151,6 +154,12 @@ async def sync_portal(
                             deadline_url=d.portal_url,
                             notification_type=NotificationType.WHATSAPP if phone.startswith('whatsapp:') else NotificationType.SMS,
                             priority=d.priority
+                        )
+                    if email:
+                        await send_email(
+                            to_email=email,
+                            subject=f"[AI Cruel] New {d.priority} Deadline: {d.title}",
+                            body=f"A new {d.priority} deadline '{d.title}' is due on {d.due_date}.\nDetails: {d.description}\nURL: {d.portal_url}"
                         )
         # Update portal sync info in Supabase
         update_portal_data = {

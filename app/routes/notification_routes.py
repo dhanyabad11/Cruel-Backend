@@ -126,6 +126,18 @@ async def send_notification(
         message=request.message,
         notification_type=notification_type
     )
+    # Also send email if user has email
+    from app.services.email_service import send_email
+    user_result = supabase.table('users').select('email').eq('id', current_user.id).execute()
+    email = None
+    if user_result.data:
+        email = user_result.data[0].get('email')
+    if email:
+        await send_email(
+            to_email=email,
+            subject="[AI Cruel] Notification",
+            body=request.message
+        )
     # Update notification record in Supabase
     update_data = {
         'delivery_status': send_result['status'],
