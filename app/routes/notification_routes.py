@@ -1,3 +1,74 @@
+@router.get("/", response_model=List[NotificationResponse])
+async def list_notifications(
+    current_user: User = Depends(get_current_user),
+    supabase: Client = Depends(get_supabase_client),
+    skip: int = Query(0, ge=0),
+    limit: int = Query(100, ge=1, le=100)
+):
+    """List notifications for the current user from Supabase"""
+    query = supabase.table('notifications').select('*').eq('user_id', current_user.id)
+    query = query.range(skip, skip + limit - 1)
+    result = query.execute()
+    notifications = result.data or []
+    return [NotificationResponse(**n) for n in notifications]
+
+@router.get("/{notification_id}", response_model=NotificationResponse)
+async def get_notification(
+    notification_id: int,
+    current_user: User = Depends(get_current_user),
+    supabase: Client = Depends(get_supabase_client)
+):
+    """Get a specific notification by ID from Supabase"""
+    result = supabase.table('notifications').select('*').eq('id', notification_id).eq('user_id', current_user.id).execute()
+    if not result.data:
+        raise HTTPException(status_code=404, detail="Notification not found")
+    notification = result.data[0]
+    return NotificationResponse(**notification)
+
+@router.put("/{notification_id}", response_model=NotificationResponse)
+async def update_notification(
+    notification_id: int,
+    notification_data: NotificationUpdate,
+    current_user: User = Depends(get_current_user),
+    supabase: Client = Depends(get_supabase_client)
+):
+    """Update a notification in Supabase"""
+    update_data = notification_data.dict(exclude_unset=True)
+    result = supabase.table('notifications').update(update_data).eq('id', notification_id).eq('user_id', current_user.id).execute()
+    if not result.data:
+        raise HTTPException(status_code=404, detail="Notification not found or update failed")
+    notification = result.data[0]
+    return NotificationResponse(**notification)
+
+@router.delete("/{notification_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_notification(
+    notification_id: int,
+    current_user: User = Depends(get_current_user),
+    supabase: Client = Depends(get_supabase_client)
+):
+    """Delete a notification in Supabase"""
+    result = supabase.table('notifications').delete().eq('id', notification_id).eq('user_id', current_user.id).execute()
+    if not result.data:
+        raise HTTPException(status_code=404, detail="Notification not found or delete failed")
+
+@router.get("/stats/overview", response_model=NotificationStatsResponse)
+async def get_notification_stats(
+    current_user: User = Depends(get_current_user),
+    supabase: Client = Depends(get_supabase_client)
+):
+    """Get notification statistics for the current user from Supabase"""
+    result = supabase.table('notifications').select('*').eq('user_id', current_user.id).execute()
+    notifications = result.data or []
+    total = len(notifications)
+    sent = sum(1 for n in notifications if n.get('delivery_status') == 'sent')
+    pending = sum(1 for n in notifications if n.get('delivery_status') == 'pending')
+    failed = sum(1 for n in notifications if n.get('delivery_status') == 'failed')
+    return NotificationStatsResponse(
+        total=total,
+        sent=sent,
+        pending=pending,
+        failed=failed
+    )
 """
 Notification Routes
 
@@ -7,13 +78,9 @@ API endpoints for notification management and sending SMS/WhatsApp messages.
 from datetime import datetime, timedelta
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy.orm import Session
-from sqlalchemy import and_, desc, func, text
-
-from app.database import get_db
+from supabase import Client
+from app.database import get_supabase_client, get_supabase_admin
 from app.models import User
-# Temporarily disabled other models
-# from app.models import User, Deadline, Notification, NotificationPreference
 from app.schemas import (
     NotificationCreate, NotificationUpdate, NotificationResponse,
     NotificationPreferenceCreate, NotificationPreferenceUpdate, NotificationPreferenceResponse,
@@ -30,49 +97,45 @@ router = APIRouter(prefix="/notifications", tags=["notifications"])
 async def send_notification(
     request: SendNotificationRequest,
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    supabase: Client = Depends(get_supabase_client)
 ):
-    """Send a custom notification"""
+    """Send a custom notification using Supabase"""
     notification_service = get_notification_service()
     if not notification_service:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Notification service not available"
         )
-    
-    # Create notification record
-    notification = Notification(
-        user_id=current_user.id,
-        deadline_id=request.deadline_id,
-        notification_type=request.notification_type,
-        phone_number=request.phone_number,
-        message_content=request.message,
-        notification_reason="manual",
-        scheduled_for=datetime.utcnow()
-    )
-    db.add(notification)
-    db.commit()
-    db.refresh(notification)
-    
+    # Create notification record in Supabase
+    notification_insert = {
+        'user_id': current_user.id,
+        'deadline_id': request.deadline_id,
+        'notification_type': request.notification_type,
+        'message': request.message,
+        'sent_at': datetime.utcnow().isoformat(),
+        'delivery_status': 'pending'
+    }
+    result = supabase.table('notifications').insert(notification_insert).execute()
+    if not result.data:
+        raise HTTPException(status_code=500, detail="Failed to create notification")
+    notification = result.data[0]
     # Send notification
     notification_type = NotificationType.WHATSAPP if request.notification_type == 'whatsapp' else NotificationType.SMS
-    result = await notification_service.send_notification(
+    send_result = await notification_service.send_notification(
         phone_number=request.phone_number,
         message=request.message,
         notification_type=notification_type
     )
-    
-    # Update notification record
-    notification.update_status(
-        status=result['status'],
-        message_sid=result.get('message_sid'),
-        sent_at=datetime.utcnow() if result['success'] else None,
-        error_message=result.get('error')
-    )
-    db.commit()
-    
-    result['notification_id'] = notification.id
-    return NotificationSendResponse(**result)
+    # Update notification record in Supabase
+    update_data = {
+        'delivery_status': send_result['status'],
+        'sent_at': datetime.utcnow().isoformat() if send_result['success'] else None,
+        'message_sid': send_result.get('message_sid'),
+        'error_message': send_result.get('error')
+    }
+    supabase.table('notifications').update(update_data).eq('id', notification['id']).execute()
+    send_result['notification_id'] = notification['id']
+    return NotificationSendResponse(**send_result)
 
 
 @router.post("/send-deadline-reminder", response_model=NotificationSendResponse)
