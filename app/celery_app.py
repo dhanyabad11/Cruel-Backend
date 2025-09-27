@@ -19,6 +19,7 @@ celery_app = Celery(
     broker=settings.REDIS_URL,
     backend=settings.REDIS_URL,
     include=[
+        'app.tasks.scraping_tasks',
         'app.tasks.celery_supabase_notification'
     ]
 )
@@ -62,6 +63,13 @@ celery_app.conf.update(
     
     # Beat schedule for periodic tasks
     beat_schedule={
+        # Scrape all portals every 30 minutes
+        'scrape-all-portals': {
+            'task': 'app.tasks.scraping_tasks.scrape_all_portals',
+            'schedule': crontab(minute='*/30'),
+            'options': {'queue': 'scraping'}
+        },
+        
         # Send deadline reminders every 15 minutes using Supabase
         'send-supabase-deadline-reminders': {
             'task': 'app.tasks.celery_supabase_notification.send_supabase_deadline_reminders',
@@ -79,6 +87,9 @@ celery_app.conf.task_annotations = {
             'max_retries': 3,
             'countdown': 60,  # Wait 1 minute between retries
         }
+    },
+    'app.tasks.scraping_tasks.*': {
+        'rate_limit': '20/m',  # Lower rate limit for scraping
     },
     'app.tasks.celery_supabase_notification.*': {
         'rate_limit': '50/m',  # Moderate rate limit for notifications

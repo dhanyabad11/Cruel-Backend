@@ -64,3 +64,43 @@ def send_supabase_deadline_reminders():
                 priority=d.get('priority', 'medium')
             )
     return {"success": True, "message": "Reminders sent."}
+
+
+@celery_app.task(name="send_deadline_reminder")
+def send_deadline_reminder(deadline_id: int):
+    """
+    Send a reminder for a specific deadline.
+    """
+    notification_service = get_notification_service()
+    
+    # Get deadline details
+    deadline_result = supabase.table('deadlines').select('*').eq('id', deadline_id).execute()
+    if not deadline_result.data:
+        return {"success": False, "error": "Deadline not found"}
+    
+    deadline = deadline_result.data[0]
+    
+    # Get user details
+    user_result = supabase.table('user_profiles').select('*').eq('id', deadline['user_id']).execute()
+    if not user_result.data:
+        return {"success": False, "error": "User not found"}
+    
+    user = user_result.data[0]
+    phone = user.get('phone_number') or user.get('phone')
+    
+    if not phone:
+        return {"success": False, "error": "No phone number configured"}
+    
+    # Send the reminder
+    try:
+        notification_service.send_deadline_reminder(
+            phone_number=phone,
+            deadline_title=deadline['title'],
+            deadline_date=datetime.fromisoformat(deadline['due_date'].replace('Z', '+00:00')),
+            deadline_url=deadline.get('portal_url'),
+            notification_type=NotificationType.WHATSAPP if phone.startswith('whatsapp:') else NotificationType.SMS,
+            priority=deadline.get('priority', 'medium')
+        )
+        return {"success": True, "message": f"Reminder sent for deadline {deadline_id}"}
+    except Exception as e:
+        return {"success": False, "error": str(e)}

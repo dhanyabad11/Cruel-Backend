@@ -14,8 +14,8 @@ from app.utils.auth import get_current_user
 from app.celery_app import celery_app
 
 # Import task functions for manual triggering
-# Note: Tasks have been migrated to Supabase-compatible implementations
-# from app.tasks.celery_supabase_notification import send_supabase_deadline_reminders
+from app.tasks.scraping_tasks import scrape_portal, scrape_user_portals, scrape_all_portals
+from app.tasks.celery_supabase_notification import send_supabase_deadline_reminders, send_deadline_reminder
 
 router = APIRouter(prefix="/tasks", tags=["tasks"])
 
