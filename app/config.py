@@ -18,9 +18,6 @@ class Settings(BaseSettings):
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     
-    # Database
-    DATABASE_URL: str = "sqlite:///./ai_cruel.db"
-    
     # Supabase Settings
     SUPABASE_URL: str = ""
     SUPABASE_ANON_KEY: str = ""

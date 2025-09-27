@@ -9,132 +9,120 @@ import logging
 from datetime import datetime, timedelta
 from typing import List, Dict, Any, Optional
 from celery import shared_task
-from sqlalchemy.orm import Session
-from sqlalchemy import and_, or_, func
 
-from app.database import SessionLocal
-from app.models import User
-# Temporarily disabled other models  
-# from app.models import User, Deadline, Notification, NotificationPreference
+from app.supabase_client import SupabaseConfig
 from app.services.notification_service import get_notification_service, NotificationType
 
 logger = logging.getLogger(__name__)
 
 
-def get_db_session():
-    """Get database session for tasks"""
-    return SessionLocal()
+def get_supabase_client():
+    """Get Supabase client for tasks"""
+    config = SupabaseConfig()
+    return config.get_service_client() or config.get_client()
 
 
 @shared_task(bind=True, name='app.tasks.notification_tasks.send_deadline_reminder')
 def send_deadline_reminder(self, deadline_id: int, notification_type: str = 'sms'):
     """
     Send a reminder for a specific deadline.
-    
+
     Args:
         deadline_id: ID of the deadline to remind about
         notification_type: 'sms' or 'whatsapp'
-        
+
     Returns:
         Dict with notification result
     """
-    db = get_db_session()
+    supabase = get_supabase_client()
     try:
         # Get deadline with user
-        deadline = db.query(Deadline).filter(Deadline.id == deadline_id).first()
+        deadline_response = supabase.table('deadlines').select('*').eq('id', deadline_id).execute()
+        deadline = deadline_response.data[0] if deadline_response.data else None
         if not deadline:
             return {"success": False, "error": "Deadline not found"}
         
-        user = db.query(User).filter(User.id == deadline.user_id).first()
+        # Get user
+        user_response = supabase.table('user_profiles').select('*').eq('id', deadline['user_id']).execute()
+        user = user_response.data[0] if user_response.data else None
         if not user:
             return {"success": False, "error": "User not found"}
-        
-        # Get user's notification preferences
-        preferences = db.query(NotificationPreference).filter(
-            NotificationPreference.user_id == user.id
-        ).first()
-        
-        if not preferences or not preferences.reminder_enabled:
+
+        # Get user's notification preferences (assuming they're in user_profiles)
+        preferences = user  # For now, assume preferences are in user profile
+
+        if not preferences.get('reminder_enabled', True):
             return {"success": True, "message": "Reminders disabled for user"}
-        
-        if not preferences.phone_number:
+
+        phone_number = preferences.get('phone_number')
+        if not phone_number:
             return {"success": False, "error": "No phone number configured"}
-        
-        # Check quiet hours
-        if preferences.is_quiet_time():
-            return {"success": True, "message": "Reminder skipped due to quiet hours"}
-        
+
+        # Check quiet hours (simplified - you might want to add this to user_profiles)
+        # For now, skip quiet hours check
+
         # Get notification service
         notification_service = get_notification_service()
         if not notification_service:
             return {"success": False, "error": "Notification service not available"}
-        
+
         # Create notification record
-        notification = Notification(
-            user_id=user.id,
-            deadline_id=deadline.id,
-            notification_type=preferences.preferred_method,
-            phone_number=preferences.phone_number,
-            message_content="",  # Will be set by service
-            notification_reason="deadline_reminder",
-            scheduled_for=datetime.utcnow()
-        )
-        db.add(notification)
-        db.commit()
-        db.refresh(notification)
-        
+        notification_data = {
+            'user_id': user['id'],
+            'deadline_id': deadline['id'],
+            'type': 'reminder',
+            'message': "",  # Will be set by service
+            'scheduled_for': datetime.utcnow().isoformat()
+        }
+        notification_response = supabase.table('notifications').insert(notification_data).execute()
+        notification = notification_response.data[0]
+
         # Send notification
         try:
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
-            
-            notif_type = NotificationType.WHATSAPP if preferences.preferred_method == 'whatsapp' else NotificationType.SMS
+
+            notif_type = NotificationType.WHATSAPP if preferences.get('preferred_method') == 'whatsapp' else NotificationType.SMS
             result = loop.run_until_complete(
                 notification_service.send_deadline_reminder(
-                    phone_number=preferences.phone_number,
-                    deadline_title=deadline.title,
-                    deadline_date=deadline.due_date,
-                    deadline_url=deadline.portal_url,
+                    phone_number=phone_number,
+                    deadline_title=deadline['title'],
+                    deadline_date=datetime.fromisoformat(deadline['due_date'].replace('Z', '+00:00')),
+                    deadline_url=deadline.get('portal_url'),
                     notification_type=notif_type,
-                    priority=deadline.priority.value if deadline.priority else "medium"
+                    priority=deadline.get('priority', 'medium')
                 )
             )
-            
+
             loop.close()
             
         except Exception as e:
             logger.error(f"Failed to send deadline reminder: {e}")
             result = {"success": False, "error": str(e)}
-        
+
         # Update notification record
-        notification.update_status(
-            status=result['status'],
-            message_sid=result.get('message_sid'),
-            sent_at=datetime.utcnow() if result['success'] else None,
-            error_message=result.get('error')
-        )
-        
-        # Update deadline reminder tracking
-        deadline.last_reminder_sent = datetime.utcnow()
-        deadline.reminder_count += 1
-        
-        db.commit()
-        
+        update_data = {
+            'status': 'sent' if result.get('success') else 'failed',
+            'sent_at': datetime.utcnow().isoformat() if result.get('success') else None
+        }
+        if result.get('error'):
+            update_data['message'] = result['error']
+        supabase.table('notifications').update(update_data).eq('id', notification['id']).execute()
+
+        # Update deadline reminder tracking (assuming we add these fields to deadlines table)
+        # For now, skip this part as the table might not have these fields
+
         return {
-            "success": result['success'],
+            "success": result.get('success', False),
             "deadline_id": deadline_id,
-            "notification_id": notification.id,
+            "notification_id": notification['id'],
             "message_sid": result.get('message_sid'),
             "error": result.get('error')
         }
-        
+
     except Exception as e:
         logger.error(f"Error sending deadline reminder for {deadline_id}: {e}")
-        db.rollback()
         return {"success": False, "error": str(e)}
-    
-    finally:
-        db.close()
 
 
 @shared_task(bind=True, name='app.tasks.notification_tasks.send_deadline_reminders')

@@ -1,6 +1,6 @@
 # SUPABASE-ONLY IMPORTS 🚀
 # Only importing working routes that have been converted to Supabase
-from .auth_routes import router as auth_router
+from .auth_routes_supabase import router as auth_router
 
 # TODO: Convert these routes to Supabase:
 # from .deadline_routes import router as deadline_router

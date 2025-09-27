@@ -5,8 +5,8 @@ Python FastAPI backend for the AI Cruel deadline management system.
 ## Features
 
 -   🚀 FastAPI with async support
--   🔐 JWT-based authentication
--   📊 SQLAlchemy ORM with database migrations
+-   🔐 Supabase authentication with JWT tokens
+-   📊 Supabase database integration
 -   🕷️ Portal scraping capabilities
 -   📱 Twilio integration for notifications
 -   ⚡ Background task processing with Celery
@@ -31,7 +31,7 @@ Python FastAPI backend for the AI Cruel deadline management system.
 
     ```bash
     cp .env.example .env
-    # Edit .env with your configuration
+    # Edit .env with your Supabase configuration
     ```
 
 4. **Run the application:**
@@ -46,7 +46,9 @@ Once running, visit:
 -   Swagger UI: http://localhost:8000/docs
 -   ReDoc: http://localhost:8000/redoc
 
-## Database Migrations
+## Database
+
+The application uses Supabase as the database. See `SUPABASE_SETUP.md` for setup instructions.
 
 ```bash
 # Initialize migrations

@@ -19,9 +19,7 @@ celery_app = Celery(
     broker=settings.REDIS_URL,
     backend=settings.REDIS_URL,
     include=[
-        'app.tasks.scraping_tasks',
-        'app.tasks.notification_tasks',
-        'app.tasks.maintenance_tasks'
+        'app.tasks.celery_supabase_notification'
     ]
 )
 
@@ -29,9 +27,7 @@ celery_app = Celery(
 celery_app.conf.update(
     # Task routing
     task_routes={
-        'app.tasks.scraping_tasks.*': {'queue': 'scraping'},
-        'app.tasks.notification_tasks.*': {'queue': 'notifications'},
-        'app.tasks.maintenance_tasks.*': {'queue': 'maintenance'},
+        'app.tasks.celery_supabase_notification.*': {'queue': 'notifications'},
     },
     
     # Task serialization
@@ -66,45 +62,10 @@ celery_app.conf.update(
     
     # Beat schedule for periodic tasks
     beat_schedule={
-        # Scrape all portals every 30 minutes
-        'scrape-all-portals': {
-            'task': 'app.tasks.scraping_tasks.scrape_all_portals',
-            'schedule': crontab(minute='*/30'),
-            'options': {'queue': 'scraping'}
-        },
-        
-        # Send daily summaries at 9 AM
-        'send-daily-summaries': {
-            'task': 'app.tasks.notification_tasks.send_daily_summaries',
-            'schedule': crontab(hour=9, minute=0),
-            'options': {'queue': 'notifications'}
-        },
-        
-        # Check for overdue deadlines every hour
-        'check-overdue-deadlines': {
-            'task': 'app.tasks.notification_tasks.check_overdue_deadlines',
-            'schedule': crontab(minute=0),
-            'options': {'queue': 'notifications'}
-        },
-        
-        # Send deadline reminders (check every 15 minutes)
-        'send-deadline-reminders': {
-            'task': 'app.tasks.notification_tasks.send_deadline_reminders',
+        # Send deadline reminders every 15 minutes using Supabase
+        'send-supabase-deadline-reminders': {
+            'task': 'app.tasks.celery_supabase_notification.send_supabase_deadline_reminders',
             'schedule': crontab(minute='*/15'),
-            'options': {'queue': 'notifications'}
-        },
-        
-        # Clean up old notifications daily at 2 AM
-        'cleanup-old-notifications': {
-            'task': 'app.tasks.maintenance_tasks.cleanup_old_notifications',
-            'schedule': crontab(hour=2, minute=0),
-            'options': {'queue': 'maintenance'}
-        },
-        
-        # Update notification statuses every 10 minutes
-        'update-notification-statuses': {
-            'task': 'app.tasks.notification_tasks.update_notification_statuses',
-            'schedule': crontab(minute='*/10'),
             'options': {'queue': 'notifications'}
         },
     }
@@ -119,10 +80,7 @@ celery_app.conf.task_annotations = {
             'countdown': 60,  # Wait 1 minute between retries
         }
     },
-    'app.tasks.scraping_tasks.*': {
-        'rate_limit': '20/m',  # Lower rate limit for scraping
-    },
-    'app.tasks.notification_tasks.*': {
+    'app.tasks.celery_supabase_notification.*': {
         'rate_limit': '50/m',  # Moderate rate limit for notifications
     }
 }

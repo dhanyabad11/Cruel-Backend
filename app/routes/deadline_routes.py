@@ -6,7 +6,6 @@ from app.database import get_supabase_client, get_supabase_admin
 from app.models.user import User
 from app.schemas.deadline import DeadlineCreate, DeadlineUpdate, DeadlineResponse, DeadlineStats
 from app.utils.auth import get_current_active_user
-from app.models.deadline import StatusLevel
 
 router = APIRouter(prefix="/deadlines", tags=["deadlines"])
 

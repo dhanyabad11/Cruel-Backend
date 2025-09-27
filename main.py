@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
-from app.routes import auth_routes_supabase as auth_routes
+from app.routes import auth_router as auth_routes
 from app.routes import deadline_routes, notification_routes, whatsapp_routes
 from app.config import settings
 from app.services.notification_service import initialize_notification_service

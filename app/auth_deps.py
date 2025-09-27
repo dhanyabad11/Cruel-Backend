@@ -13,6 +13,7 @@ async def get_current_user(
     Dependency to get current authenticated user from JWT token
     """
     token = credentials.credentials
+    print(f"DEBUG: Extracted token from header: {token[:50]}...")
     
     if not token:
         raise HTTPException(
@@ -22,6 +23,7 @@ async def get_current_user(
         )
     
     user = await auth_service.get_user_from_token(token)
+    print(f"DEBUG: User from token: {user}")
     
     if user is None:
         raise HTTPException(

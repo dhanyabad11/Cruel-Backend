@@ -1,32 +1,38 @@
 # 🗄️ Database Management System
 
-This document describes the database management system for AI Cruel, including migrations, backups, and maintenance operations.
+This document describes the database management system for AI Cruel, which now uses Supabase as the primary database.
 
 ## 📋 Overview
 
-The AI Cruel database system uses SQLite with a custom migration system to handle schema changes and data management. The system includes:
+The AI Cruel database system uses Supabase (PostgreSQL) with real-time capabilities and built-in authentication. The system includes:
 
--   **Migration System**: Version-controlled database schema changes
--   **Backup & Restore**: Database backup and recovery tools
--   **Statistics & Monitoring**: Database health and usage statistics
--   **Maintenance**: Cleanup and optimization tools
+-   **Supabase Integration**: Cloud-hosted PostgreSQL database with real-time subscriptions
+-   **Authentication**: Built-in user management and JWT token handling
+-   **Real-time Updates**: Live data synchronization across clients
+-   **Backup & Recovery**: Automatic backups and point-in-time recovery
+-   **API Access**: RESTful and GraphQL APIs for data access
 
-## 🔄 Migration System
+## 🔄 Database Schema
 
-### Running Migrations
+The database schema is managed through Supabase migrations and includes the following tables:
 
-```bash
-# Apply all pending migrations
-python3 migrate.py
+-   `users` - User accounts and profiles
+-   `deadlines` - Task deadlines with priorities and status
+-   `notifications` - Notification history and delivery status
+-   `portals` - External service integrations (GitHub, Jira, etc.)
 
-# Check migration status
-python3 migrate.py --status
+## 🚀 Supabase Setup
 
-# Create new migration template
-python3 migrate.py --create "Add user preferences table"
-```
+See `SUPABASE_SETUP.md` for detailed setup instructions.
 
-### Migration Structure
+## 📊 Monitoring
+
+Supabase provides built-in monitoring and analytics:
+
+-   Query performance and optimization
+-   Real-time connection monitoring
+-   Database size and usage statistics
+-   API request logs and analytics
 
 ```python
 from migrations import migrate

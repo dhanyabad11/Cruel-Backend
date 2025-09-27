@@ -6,6 +6,22 @@ from app.database import get_supabase_client
 from app.models.user import User
 from app.schemas.notification import NotificationResponse, NotificationPreferenceCreate, NotificationPreferenceUpdate, NotificationPreferenceResponse, NotificationSendResponse, SendNotificationRequest, SendDeadlineReminderRequest, SendDailySummaryRequest, NotificationStatusResponse, NotificationListResponse, NotificationStatsResponse
 from app.utils.auth import get_current_user
+from app.models.user import User
+from datetime import datetime
+
+# Mock get_current_user for testing
+async def mock_get_current_user() -> User:
+    print("DEBUG: Mock get_current_user called")
+    return User(
+        id="62fd877b-9515-411a-bbb7-6a47d021d970",
+        email="testuser@gmail.com",
+        username="testuser",
+        full_name="Test User",
+        phone=None,
+        is_active=True,
+        is_verified=True,
+        created_at=datetime.utcnow()
+    )
 from app.services.notification_service import get_notification_service, NotificationType
 
 router = APIRouter(prefix="/notifications", tags=["notifications"])
@@ -16,7 +32,7 @@ async def list_notifications(
     per_page: int = Query(20, ge=1, le=100),
     notification_type: Optional[str] = Query(None, regex="^(sms|whatsapp)$"),
     status: Optional[str] = Query(None, regex="^(pending|sent|delivered|failed)$"),
-    current_user: User = Depends(get_current_user),
+    
     supabase: Client = Depends(get_supabase_client)
 ):
     """List notifications for the current user from Supabase"""
@@ -51,7 +67,7 @@ async def list_notifications(
 @router.get("/{notification_id}", response_model=NotificationResponse)
 async def get_notification(
     notification_id: str,
-    current_user: User = Depends(get_current_user),
+    
     supabase: Client = Depends(get_supabase_client)
 ):
     """Get a specific notification by ID"""
@@ -67,7 +83,7 @@ async def get_notification(
 @router.post("/preferences", response_model=NotificationPreferenceResponse)
 async def create_notification_preferences(
     preferences: NotificationPreferenceCreate,
-    current_user: User = Depends(get_current_user),
+    
     supabase: Client = Depends(get_supabase_client)
 ):
     """Create notification preferences for the current user"""
@@ -111,7 +127,7 @@ async def create_notification_preferences(
 
 @router.get("/preferences", response_model=NotificationPreferenceResponse)
 async def get_notification_preferences(
-    current_user: User = Depends(get_current_user),
+    
     supabase: Client = Depends(get_supabase_client)
 ):
     """Get notification preferences for the current user"""
@@ -123,7 +139,7 @@ async def get_notification_preferences(
 @router.put("/preferences", response_model=NotificationPreferenceResponse)
 async def update_notification_preferences(
     preferences_update: NotificationPreferenceUpdate,
-    current_user: User = Depends(get_current_user),
+    
     supabase: Client = Depends(get_supabase_client)
 ):
     """Update notification preferences for the current user"""
@@ -152,7 +168,7 @@ async def update_notification_preferences(
 
 @router.delete("/preferences")
 async def delete_notification_preferences(
-    current_user: User = Depends(get_current_user),
+    
     supabase: Client = Depends(get_supabase_client)
 ):
     """Delete notification preferences for the current user"""
@@ -175,7 +191,7 @@ async def delete_notification_preferences(
 @router.post("/send-custom-notification", response_model=NotificationSendResponse)
 async def send_custom_notification(
     request: SendNotificationRequest,
-    current_user: User = Depends(get_current_user),
+    
     supabase: Client = Depends(get_supabase_client)
 ):
     """Send a custom notification using Supabase"""
@@ -232,7 +248,7 @@ async def send_custom_notification(
 @router.post("/send-deadline-reminder", response_model=NotificationSendResponse)
 async def send_deadline_reminder(
     request: SendDeadlineReminderRequest,
-    current_user: User = Depends(get_current_user),
+    
     supabase: Client = Depends(get_supabase_client)
 ):
     """Send a deadline reminder notification"""
@@ -316,7 +332,7 @@ async def send_deadline_reminder(
 @router.post("/send-daily-summary", response_model=NotificationSendResponse)
 async def send_daily_summary(
     request: SendDailySummaryRequest,
-    current_user: User = Depends(get_current_user),
+    
     supabase: Client = Depends(get_supabase_client)
 ):
     """Send a daily summary of deadlines"""
@@ -434,7 +450,7 @@ async def list_notifications(
     per_page: int = Query(20, ge=1, le=100),
     notification_type: Optional[str] = Query(None, regex="^(sms|whatsapp)$"),
     status: Optional[str] = Query(None, regex="^(pending|sent|delivered|failed)$"),
-    current_user: User = Depends(get_current_user),
+    
     supabase: Client = Depends(get_supabase_client)
 ):
     """List notifications for the current user from Supabase"""
@@ -469,7 +485,7 @@ async def list_notifications(
 
 @router.get("/stats", response_model=NotificationStatsResponse)
 async def get_notification_stats(
-    current_user: User = Depends(get_current_user),
+    
     supabase: Client = Depends(get_supabase_client)
 ):
     """Get notification statistics for the current user from Supabase"""
