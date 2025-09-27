@@ -6,7 +6,7 @@ Pydantic schemas for notification-related API endpoints.
 
 from datetime import datetime
 from typing import Optional, List, Dict, Any
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, EmailStr, validator
 
 
 class NotificationCreate(BaseModel):

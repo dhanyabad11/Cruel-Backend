@@ -1,114 +1,181 @@
-@router.get("/", response_model=List[NotificationResponse])
+from fastapi import APIRouter, Depends, HTTPException, status, Query
+from typing import List, Optional
+from datetime import datetime, timedelta
+from supabase import Client
+from app.database import get_supabase_client
+from app.models.user import User
+from app.schemas.notification import NotificationResponse, NotificationPreferenceCreate, NotificationPreferenceUpdate, NotificationPreferenceResponse, NotificationSendResponse, SendNotificationRequest, SendDeadlineReminderRequest, SendDailySummaryRequest, NotificationStatusResponse, NotificationListResponse, NotificationStatsResponse
+from app.utils.auth import get_current_user
+from app.services.notification_service import get_notification_service, NotificationType
+
+router = APIRouter(prefix="/notifications", tags=["notifications"])
+
+@router.get("/", response_model=NotificationListResponse)
 async def list_notifications(
+    page: int = Query(1, ge=1),
+    per_page: int = Query(20, ge=1, le=100),
+    notification_type: Optional[str] = Query(None, regex="^(sms|whatsapp)$"),
+    status: Optional[str] = Query(None, regex="^(pending|sent|delivered|failed)$"),
     current_user: User = Depends(get_current_user),
-    supabase: Client = Depends(get_supabase_client),
-    skip: int = Query(0, ge=0),
-    limit: int = Query(100, ge=1, le=100)
+    supabase: Client = Depends(get_supabase_client)
 ):
     """List notifications for the current user from Supabase"""
-    query = supabase.table('notifications').select('*').eq('user_id', current_user.id)
-    query = query.range(skip, skip + limit - 1)
+    # Build query
+    query = supabase.table('notifications').select('*', count='exact').eq('user_id', current_user.id)
+    
+    # Apply filters
+    if notification_type:
+        query = query.eq('notification_type', notification_type)
+    if status:
+        query = query.eq('status', status)
+    
+    # Apply pagination
+    offset = (page - 1) * per_page
+    query = query.range(offset, offset + per_page - 1).order('created_at', desc=True)
+    
     result = query.execute()
     notifications = result.data or []
-    return [NotificationResponse(**n) for n in notifications]
+    total = result.count or 0
+    
+    # Calculate pages
+    pages = (total + per_page - 1) // per_page
+    
+    return NotificationListResponse(
+        notifications=[NotificationResponse(**n) for n in notifications],
+        total=total,
+        page=page,
+        per_page=per_page,
+        pages=pages
+    )
 
 @router.get("/{notification_id}", response_model=NotificationResponse)
+async def get_notification(
+    notification_id: str,
+    current_user: User = Depends(get_current_user),
+    supabase: Client = Depends(get_supabase_client)
+):
+    """Get a specific notification by ID"""
+    query = supabase.table('notifications').select('*').eq('id', notification_id).eq('user_id', current_user.id)
+    result = query.execute()
+    notification = result.data[0] if result.data else None
+    if notification is None:
+        raise HTTPException(status_code=404, detail="Notification not found")
+    return NotificationResponse(**notification)
+
 
 # Notification Preference Routes
-from app.models.notification import NotificationPreference
-from app.schemas.notification import NotificationPreferenceCreate, NotificationPreferenceUpdate, NotificationPreferenceResponse
-from sqlalchemy.orm import Session
-from fastapi import Depends
-from datetime import datetime
-
 @router.post("/preferences", response_model=NotificationPreferenceResponse)
 async def create_notification_preferences(
     preferences: NotificationPreferenceCreate,
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    supabase: Client = Depends(get_supabase_client)
 ):
     """Create notification preferences for the current user"""
-    existing = db.query(NotificationPreference).filter(NotificationPreference.user_id == current_user.id).first()
-    if existing:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Notification preferences already exist. Use PUT to update.")
-    db_preferences = NotificationPreference(
-        user_id=current_user.id,
-        preferred_method=preferences.preferred_method,
-        phone_number=preferences.phone_number,
-        email=preferences.email,
-        created_at=datetime.utcnow(),
-        updated_at=datetime.utcnow()
-    )
-    db.add(db_preferences)
-    db.commit()
-    db.refresh(db_preferences)
-    return NotificationPreferenceResponse(
-        id=db_preferences.id,
-        user_id=db_preferences.user_id,
-        preferred_method=db_preferences.preferred_method,
-        phone_number=db_preferences.phone_number,
-        email=db_preferences.email,
-        created_at=db_preferences.created_at.isoformat(),
-        updated_at=db_preferences.updated_at.isoformat()
-    )
+    logger = logging.getLogger("notification_preferences")
+    try:
+        # Check if preferences already exist
+        existing = supabase.table('notification_preferences').select('*').eq('user_id', current_user.id).execute()
+        if existing.data:
+            logger.warning(f"User {current_user.id} tried to create duplicate notification preferences.")
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Notification preferences already exist. Use PUT to update.")
+
+        # Create new preferences
+        insert_data = {
+            'user_id': current_user.id,
+            'preferred_method': preferences.preferred_method,
+            'phone_number': preferences.phone_number,
+            'email': preferences.email,
+            'daily_summary_enabled': preferences.daily_summary_enabled,
+            'daily_summary_time': preferences.daily_summary_time,
+            'reminder_enabled': preferences.reminder_enabled,
+            'reminder_hours_before': preferences.reminder_hours_before,
+            'overdue_alerts_enabled': preferences.overdue_alerts_enabled,
+            'weekend_notifications': preferences.weekend_notifications,
+            'quiet_hours_enabled': preferences.quiet_hours_enabled,
+            'quiet_hours_start': preferences.quiet_hours_start,
+            'quiet_hours_end': preferences.quiet_hours_end,
+            'created_at': datetime.utcnow().isoformat(),
+            'updated_at': datetime.utcnow().isoformat()
+        }
+
+        result = supabase.table('notification_preferences').insert(insert_data).execute()
+        if not result.data:
+            raise HTTPException(status_code=500, detail="Failed to create notification preferences")
+
+        preferences_data = result.data[0]
+        logger.info(f"Notification preferences created for user {current_user.id}.")
+        return NotificationPreferenceResponse(**preferences_data)
+    except Exception as e:
+        logger.error(f"Error creating notification preferences for user {current_user.id}: {e}")
+        raise
 
 @router.get("/preferences", response_model=NotificationPreferenceResponse)
 async def get_notification_preferences(
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    supabase: Client = Depends(get_supabase_client)
 ):
     """Get notification preferences for the current user"""
-    preferences = db.query(NotificationPreference).filter(NotificationPreference.user_id == current_user.id).first()
-    if not preferences:
+    result = supabase.table('notification_preferences').select('*').eq('user_id', current_user.id).execute()
+    if not result.data:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Notification preferences not found")
-    return NotificationPreferenceResponse(
-        id=preferences.id,
-        user_id=preferences.user_id,
-        preferred_method=preferences.preferred_method,
-        phone_number=preferences.phone_number,
-        email=preferences.email,
-        created_at=preferences.created_at.isoformat(),
-        updated_at=preferences.updated_at.isoformat()
-    )
+    return NotificationPreferenceResponse(**result.data[0])
 
 @router.put("/preferences", response_model=NotificationPreferenceResponse)
 async def update_notification_preferences(
     preferences_update: NotificationPreferenceUpdate,
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    supabase: Client = Depends(get_supabase_client)
 ):
     """Update notification preferences for the current user"""
-    preferences = db.query(NotificationPreference).filter(NotificationPreference.user_id == current_user.id).first()
-    if not preferences:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Notification preferences not found. Create them first.")
-    update_data = preferences_update.dict(exclude_unset=True)
-    for field, value in update_data.items():
-        setattr(preferences, field, value)
-    preferences.updated_at = datetime.utcnow()
-    db.commit()
-    db.refresh(preferences)
-    return NotificationPreferenceResponse(
-        id=preferences.id,
-        user_id=preferences.user_id,
-        preferred_method=preferences.preferred_method,
-        phone_number=preferences.phone_number,
-        email=preferences.email,
-        created_at=preferences.created_at.isoformat(),
-        updated_at=preferences.updated_at.isoformat()
-    )
+    logger = logging.getLogger("notification_preferences")
+    try:
+        # Check if preferences exist
+        existing = supabase.table('notification_preferences').select('*').eq('user_id', current_user.id).execute()
+        if not existing.data:
+            logger.warning(f"User {current_user.id} tried to update non-existent notification preferences.")
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Notification preferences not found. Create them first.")
+
+        # Update preferences
+        update_data = preferences_update.dict(exclude_unset=True)
+        update_data['updated_at'] = datetime.utcnow().isoformat()
+
+        result = supabase.table('notification_preferences').update(update_data).eq('user_id', current_user.id).execute()
+        if not result.data:
+            raise HTTPException(status_code=500, detail="Failed to update notification preferences")
+
+        preferences_data = result.data[0]
+        logger.info(f"Notification preferences updated for user {current_user.id}.")
+        return NotificationPreferenceResponse(**preferences_data)
+    except Exception as e:
+        logger.error(f"Error updating notification preferences for user {current_user.id}: {e}")
+        raise
 
 @router.delete("/preferences")
 async def delete_notification_preferences(
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    supabase: Client = Depends(get_supabase_client)
 ):
     """Delete notification preferences for the current user"""
-    preferences = db.query(NotificationPreference).filter(NotificationPreference.user_id == current_user.id).first()
-    if not preferences:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Notification preferences not found")
-    db.delete(preferences)
-    db.commit()
-    return {"message": "Notification preferences deleted successfully"}
+    logger = logging.getLogger("notification_preferences")
+    try:
+        # Check if preferences exist
+        existing = supabase.table('notification_preferences').select('*').eq('user_id', current_user.id).execute()
+        if not existing.data:
+            logger.warning(f"User {current_user.id} tried to delete non-existent notification preferences.")
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Notification preferences not found")
+
+        # Delete preferences
+        result = supabase.table('notification_preferences').delete().eq('user_id', current_user.id).execute()
+        logger.info(f"Notification preferences deleted for user {current_user.id}.")
+        return {"message": "Notification preferences deleted successfully"}
+    except Exception as e:
+        logger.error(f"Error deleting notification preferences for user {current_user.id}: {e}")
+        raise
+
+@router.post("/send-custom-notification", response_model=NotificationSendResponse)
+async def send_custom_notification(
+    request: SendNotificationRequest,
+    current_user: User = Depends(get_current_user),
     supabase: Client = Depends(get_supabase_client)
 ):
     """Send a custom notification using Supabase"""
@@ -166,7 +233,7 @@ async def delete_notification_preferences(
 async def send_deadline_reminder(
     request: SendDeadlineReminderRequest,
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    supabase: Client = Depends(get_supabase_client)
 ):
     """Send a deadline reminder notification"""
     notification_service = get_notification_service()
@@ -176,10 +243,9 @@ async def send_deadline_reminder(
             detail="Notification service not available"
         )
     
-    # Get deadline
-    deadline = db.query(Deadline).filter(
-        and_(Deadline.id == request.deadline_id, Deadline.user_id == current_user.id)
-    ).first()
+    # Get deadline from Supabase
+    deadline_result = supabase.table('deadlines').select('*').eq('id', request.deadline_id).eq('user_id', current_user.id).execute()
+    deadline = deadline_result.data[0] if deadline_result.data else None
     
     if not deadline:
         raise HTTPException(
@@ -187,19 +253,18 @@ async def send_deadline_reminder(
             detail="Deadline not found"
         )
     
-    # Get user's notification preferences
-    preferences = db.query(NotificationPreference).filter(
-        NotificationPreference.user_id == current_user.id
-    ).first()
+    # Get user's notification preferences from Supabase
+    preferences_result = supabase.table('notification_preferences').select('*').eq('user_id', current_user.id).execute()
+    preferences = preferences_result.data[0] if preferences_result.data else None
     
     # Determine phone number and notification type
     phone_number = request.phone_number
     notification_type = request.notification_type
     
     if not phone_number and preferences:
-        phone_number = preferences.phone_number
+        phone_number = preferences.get('phone_number')
     if not notification_type and preferences:
-        notification_type = preferences.preferred_method
+        notification_type = preferences.get('preferred_method')
     
     if not phone_number:
         raise HTTPException(
@@ -209,42 +274,42 @@ async def send_deadline_reminder(
     
     notification_type = notification_type or 'sms'
     
-    # Create notification record
-    notification = Notification(
-        user_id=current_user.id,
-        deadline_id=deadline.id,
-        notification_type=notification_type,
-        phone_number=phone_number,
-        message_content="",  # Will be set by service
-        notification_reason="deadline_reminder",
-        scheduled_for=datetime.utcnow()
-    )
-    db.add(notification)
-    db.commit()
-    db.refresh(notification)
+    # Create notification record in Supabase
+    notification_insert = {
+        'user_id': current_user.id,
+        'deadline_id': deadline['id'],
+        'notification_type': notification_type,
+        'phone_number': phone_number,
+        'message_content': '',  # Will be set by service
+        'notification_reason': 'deadline_reminder',
+        'scheduled_for': datetime.utcnow().isoformat(),
+        'status': 'pending'
+    }
+    notification_result = supabase.table('notifications').insert(notification_insert).execute()
+    notification = notification_result.data[0]
     
     # Send deadline reminder
     notif_type = NotificationType.WHATSAPP if notification_type == 'whatsapp' else NotificationType.SMS
     result = await notification_service.send_deadline_reminder(
         phone_number=phone_number,
-        deadline_title=deadline.title,
-        deadline_date=deadline.due_date,
-        deadline_url=deadline.portal_url,
+        deadline_title=deadline['title'],
+        deadline_date=deadline['due_date'],
+        deadline_url=deadline.get('portal_url'),
         notification_type=notif_type,
-        priority=deadline.priority.value if deadline.priority else "medium"
+        priority=deadline.get('priority', 'medium')
     )
     
-    # Update notification record
-    notification.message_content = result.get('message_content', '')
-    notification.update_status(
-        status=result['status'],
-        message_sid=result.get('message_sid'),
-        sent_at=datetime.utcnow() if result['success'] else None,
-        error_message=result.get('error')
-    )
-    db.commit()
+    # Update notification record in Supabase
+    update_data = {
+        'message_content': result.get('message_content', ''),
+        'status': result['status'],
+        'message_sid': result.get('message_sid'),
+        'sent_at': datetime.utcnow().isoformat() if result['success'] else None,
+        'error_message': result.get('error')
+    }
+    supabase.table('notifications').update(update_data).eq('id', notification['id']).execute()
     
-    result['notification_id'] = notification.id
+    result['notification_id'] = notification['id']
     return NotificationSendResponse(**result)
 
 
@@ -252,7 +317,7 @@ async def send_deadline_reminder(
 async def send_daily_summary(
     request: SendDailySummaryRequest,
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    supabase: Client = Depends(get_supabase_client)
 ):
     """Send a daily summary of deadlines"""
     notification_service = get_notification_service()
@@ -262,19 +327,18 @@ async def send_daily_summary(
             detail="Notification service not available"
         )
     
-    # Get user's notification preferences
-    preferences = db.query(NotificationPreference).filter(
-        NotificationPreference.user_id == current_user.id
-    ).first()
+    # Get user's notification preferences from Supabase
+    preferences_result = supabase.table('notification_preferences').select('*').eq('user_id', current_user.id).execute()
+    preferences = preferences_result.data[0] if preferences_result.data else None
     
     # Determine phone number and notification type
     phone_number = request.phone_number
     notification_type = request.notification_type
     
     if not phone_number and preferences:
-        phone_number = preferences.phone_number
+        phone_number = preferences.get('phone_number')
     if not notification_type and preferences:
-        notification_type = preferences.preferred_method
+        notification_type = preferences.get('preferred_method')
     
     if not phone_number:
         raise HTTPException(
@@ -284,45 +348,39 @@ async def send_daily_summary(
     
     notification_type = notification_type or 'sms'
     
-    # Get deadlines for summary
+    # Get deadlines for summary from Supabase
     target_date = datetime.utcnow().date()
     if request.date:
         target_date = datetime.strptime(request.date, '%Y-%m-%d').date()
     
     # Get upcoming deadlines (next 7 days)
     end_date = target_date + timedelta(days=7)
-    deadlines = db.query(Deadline).filter(
-        and_(
-            Deadline.user_id == current_user.id,
-            Deadline.due_date >= target_date,
-            Deadline.due_date <= end_date,
-            Deadline.status != 'completed'
-        )
-    ).order_by(Deadline.due_date).all()
+    deadlines_result = supabase.table('deadlines').select('*').eq('user_id', current_user.id).gte('due_date', target_date.isoformat()).lte('due_date', end_date.isoformat()).neq('status', 'completed').order('due_date').execute()
+    deadlines = deadlines_result.data or []
     
     # Convert to dict format
     deadline_dicts = []
     for deadline in deadlines:
         deadline_dicts.append({
-            'title': deadline.title,
-            'due_date': deadline.due_date.isoformat(),
-            'priority': deadline.priority.value if deadline.priority else 'medium',
-            'url': deadline.portal_url
+            'title': deadline['title'],
+            'due_date': deadline['due_date'],
+            'priority': deadline.get('priority', 'medium'),
+            'url': deadline.get('portal_url')
         })
     
-    # Create notification record
-    notification = Notification(
-        user_id=current_user.id,
-        deadline_id=None,
-        notification_type=notification_type,
-        phone_number=phone_number,
-        message_content="",  # Will be set by service
-        notification_reason="daily_summary",
-        scheduled_for=datetime.utcnow()
-    )
-    db.add(notification)
-    db.commit()
-    db.refresh(notification)
+    # Create notification record in Supabase
+    notification_insert = {
+        'user_id': current_user.id,
+        'deadline_id': None,
+        'notification_type': notification_type,
+        'phone_number': phone_number,
+        'message_content': '',  # Will be set by service
+        'notification_reason': 'daily_summary',
+        'scheduled_for': datetime.utcnow().isoformat(),
+        'status': 'pending'
+    }
+    notification_result = supabase.table('notifications').insert(notification_insert).execute()
+    notification = notification_result.data[0]
     
     # Send daily summary
     notif_type = NotificationType.WHATSAPP if notification_type == 'whatsapp' else NotificationType.SMS
@@ -332,17 +390,17 @@ async def send_daily_summary(
         notification_type=notif_type
     )
     
-    # Update notification record
-    notification.message_content = result.get('message_content', '')
-    notification.update_status(
-        status=result['status'],
-        message_sid=result.get('message_sid'),
-        sent_at=datetime.utcnow() if result['success'] else None,
-        error_message=result.get('error')
-    )
-    db.commit()
+    # Update notification record in Supabase
+    update_data = {
+        'message_content': result.get('message_content', ''),
+        'status': result['status'],
+        'message_sid': result.get('message_sid'),
+        'sent_at': datetime.utcnow().isoformat() if result['success'] else None,
+        'error_message': result.get('error')
+    }
+    supabase.table('notifications').update(update_data).eq('id', notification['id']).execute()
     
-    result['notification_id'] = notification.id
+    result['notification_id'] = notification['id']
     return NotificationSendResponse(**result)
 
 
@@ -377,30 +435,31 @@ async def list_notifications(
     notification_type: Optional[str] = Query(None, regex="^(sms|whatsapp)$"),
     status: Optional[str] = Query(None, regex="^(pending|sent|delivered|failed)$"),
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    supabase: Client = Depends(get_supabase_client)
 ):
-    """List notifications for the current user"""
-    query = db.query(Notification).filter(Notification.user_id == current_user.id)
+    """List notifications for the current user from Supabase"""
+    # Build query
+    query = supabase.table('notifications').select('*', count='exact').eq('user_id', current_user.id)
     
     # Apply filters
     if notification_type:
-        query = query.filter(Notification.notification_type == notification_type)
+        query = query.eq('notification_type', notification_type)
     if status:
-        query = query.filter(Notification.status == status)
-    
-    # Get total count
-    total = query.count()
+        query = query.eq('status', status)
     
     # Apply pagination
-    notifications = query.order_by(desc(Notification.created_at)).offset(
-        (page - 1) * per_page
-    ).limit(per_page).all()
+    offset = (page - 1) * per_page
+    query = query.range(offset, offset + per_page - 1).order('created_at', desc=True)
+    
+    result = query.execute()
+    notifications = result.data or []
+    total = result.count or 0
     
     # Calculate pages
     pages = (total + per_page - 1) // per_page
     
     return NotificationListResponse(
-        notifications=[NotificationResponse.from_orm(n) for n in notifications],
+        notifications=[NotificationResponse(**n) for n in notifications],
         total=total,
         page=page,
         per_page=per_page,
@@ -411,135 +470,32 @@ async def list_notifications(
 @router.get("/stats", response_model=NotificationStatsResponse)
 async def get_notification_stats(
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    supabase: Client = Depends(get_supabase_client)
 ):
-    """Get notification statistics for the current user"""
-    # Get stats
-    total_sent = db.query(func.count(Notification.id)).filter(
-        and_(Notification.user_id == current_user.id, Notification.status != 'pending')
-    ).scalar() or 0
+    """Get notification statistics for the current user from Supabase"""
+    # Get total sent (not pending)
+    sent_result = supabase.table('notifications').select('*', count='exact').eq('user_id', current_user.id).neq('status', 'pending').execute()
+    total_sent = sent_result.count or 0
     
-    total_delivered = db.query(func.count(Notification.id)).filter(
-        and_(Notification.user_id == current_user.id, Notification.status == 'delivered')
-    ).scalar() or 0
+    # Get total delivered
+    delivered_result = supabase.table('notifications').select('*', count='exact').eq('user_id', current_user.id).eq('status', 'delivered').execute()
+    total_delivered = delivered_result.count or 0
     
-    total_failed = db.query(func.count(Notification.id)).filter(
-        and_(Notification.user_id == current_user.id, Notification.status == 'failed')
-    ).scalar() or 0
+    # Get total failed
+    failed_result = supabase.table('notifications').select('*', count='exact').eq('user_id', current_user.id).eq('status', 'failed').execute()
+    total_failed = failed_result.count or 0
     
     # Calculate delivery rate
     delivery_rate = (total_delivered / total_sent * 100) if total_sent > 0 else 0
     
     # Get recent notifications
-    recent_notifications = db.query(Notification).filter(
-        Notification.user_id == current_user.id
-    ).order_by(desc(Notification.created_at)).limit(5).all()
+    recent_result = supabase.table('notifications').select('*').eq('user_id', current_user.id).order('created_at', desc=True).limit(5).execute()
+    recent_notifications = recent_result.data or []
     
     return NotificationStatsResponse(
         total_sent=total_sent,
         total_delivered=total_delivered,
         total_failed=total_failed,
         delivery_rate=round(delivery_rate, 2),
-        recent_notifications=[NotificationResponse.from_orm(n) for n in recent_notifications]
+        recent_notifications=[NotificationResponse(**n) for n in recent_notifications]
     )
-
-
-# Notification Preference Routes
-@router.post("/preferences", response_model=NotificationPreferenceResponse)
-async def create_notification_preferences(
-    preferences: NotificationPreferenceCreate,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    """Create or update notification preferences"""
-    # Check if preferences already exist
-    existing = db.query(NotificationPreference).filter(
-        NotificationPreference.user_id == current_user.id
-    ).first()
-    
-    if existing:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Notification preferences already exist. Use PUT to update."
-        )
-    
-    # Create new preferences
-    db_preferences = NotificationPreference(
-        user_id=current_user.id,
-        **preferences.dict()
-    )
-    db.add(db_preferences)
-    db.commit()
-    db.refresh(db_preferences)
-    
-    return NotificationPreferenceResponse.from_orm(db_preferences)
-
-
-@router.get("/preferences", response_model=NotificationPreferenceResponse)
-async def get_notification_preferences(
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    """Get notification preferences for the current user"""
-    preferences = db.query(NotificationPreference).filter(
-        NotificationPreference.user_id == current_user.id
-    ).first()
-    
-    if not preferences:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Notification preferences not found"
-        )
-    
-    return NotificationPreferenceResponse.from_orm(preferences)
-
-
-@router.put("/preferences", response_model=NotificationPreferenceResponse)
-async def update_notification_preferences(
-    preferences_update: NotificationPreferenceUpdate,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    """Update notification preferences"""
-    preferences = db.query(NotificationPreference).filter(
-        NotificationPreference.user_id == current_user.id
-    ).first()
-    
-    if not preferences:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Notification preferences not found. Create them first."
-        )
-    
-    # Update preferences
-    update_data = preferences_update.dict(exclude_unset=True)
-    for field, value in update_data.items():
-        setattr(preferences, field, value)
-    
-    preferences.updated_at = datetime.utcnow()
-    db.commit()
-    db.refresh(preferences)
-    
-    return NotificationPreferenceResponse.from_orm(preferences)
-
-
-@router.delete("/preferences")
-async def delete_notification_preferences(
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    """Delete notification preferences"""
-    preferences = db.query(NotificationPreference).filter(
-        NotificationPreference.user_id == current_user.id
-    ).first()
-    
-    if not preferences:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Notification preferences not found"
-        )
-    
-    db.delete(preferences)
-    db.commit()
-    
-    return {"message": "Notification preferences deleted successfully"}

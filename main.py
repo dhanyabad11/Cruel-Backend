@@ -2,7 +2,8 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
-from app.routes import auth_routes  # Only auth_routes for now - others need to be converted to Supabase
+from app.routes import auth_routes_supabase as auth_routes
+from app.routes import deadline_routes, notification_routes, whatsapp_routes
 from app.config import settings
 from app.services.notification_service import initialize_notification_service
 import uvicorn
@@ -40,11 +41,11 @@ try:
 except Exception as e:
     logger.warning(f"Failed to initialize notification service: {e}")
 
-# Include routers - ONLY AUTH FOR NOW (others need Supabase conversion)
+# Include routers
 app.include_router(auth_routes.router, prefix="/api/auth", tags=["authentication"])
-# TODO: Convert and add other routes:
-# app.include_router(task_routes.router, prefix="/api", tags=["tasks"])
-# app.include_router(whatsapp_routes.router, tags=["whatsapp"])
+app.include_router(deadline_routes.router, prefix="/api/deadlines", tags=["deadlines"])
+app.include_router(notification_routes.router, prefix="/api/notifications", tags=["notifications"])
+app.include_router(whatsapp_routes.router, tags=["whatsapp"])
 
 @app.get("/")
 async def root():

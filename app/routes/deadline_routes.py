@@ -8,7 +8,7 @@ from app.schemas.deadline import DeadlineCreate, DeadlineUpdate, DeadlineRespons
 from app.utils.auth import get_current_active_user
 from app.models.deadline import StatusLevel
 
-
+router = APIRouter(prefix="/deadlines", tags=["deadlines"])
 
 @router.get("/", response_model=List[DeadlineResponse])
 async def get_deadlines(
