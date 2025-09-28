@@ -18,15 +18,20 @@ celery_app = Celery(
 )
 
 SUPABASE_URL = os.getenv("SUPABASE_URL")
-SUPABASE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
+SUPABASE_KEY = os.getenv("SUPABASE_SERVICE_KEY")
 
-supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+# Create Supabase client lazily to avoid import-time errors
+def get_supabase_client():
+    if not SUPABASE_URL or not SUPABASE_KEY:
+        raise ValueError("SUPABASE_URL and SUPABASE_SERVICE_KEY environment variables must be set")
+    return create_client(SUPABASE_URL, SUPABASE_KEY)
 
 @celery_app.task(name="send_supabase_deadline_reminders")
 def send_supabase_deadline_reminders():
     """
     Celery task to send reminders for upcoming/overdue deadlines using Supabase.
     """
+    supabase = get_supabase_client()
     now = datetime.utcnow()
     soon = now + timedelta(hours=1)
     overdue = now
@@ -71,6 +76,7 @@ def send_deadline_reminder(deadline_id: int):
     """
     Send a reminder for a specific deadline.
     """
+    supabase = get_supabase_client()
     notification_service = get_notification_service()
     
     # Get deadline details

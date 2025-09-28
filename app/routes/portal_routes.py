@@ -83,8 +83,7 @@ async def delete_portal(
 @router.post("/{portal_id}/sync", response_model=SyncResult)
 async def sync_portal(
     portal_id: int,
-    current_user: User = Depends(get_current_active_user),
-    db: Session = Depends(get_db)
+    current_user: User = Depends(get_current_active_user)
 ):
     """Manually sync a portal to fetch deadlines"""
     from supabase import Client

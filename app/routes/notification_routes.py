@@ -24,7 +24,7 @@ async def mock_get_current_user() -> User:
     )
 from app.services.notification_service import get_notification_service, NotificationType
 
-router = APIRouter(prefix="/notifications", tags=["notifications"])
+router = APIRouter(tags=["notifications"])
 
 @router.get("/", response_model=NotificationListResponse)
 async def list_notifications(

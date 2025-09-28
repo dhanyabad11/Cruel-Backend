@@ -116,7 +116,7 @@ def scrape_portal(self, portal_id: int):
                         'priority': scraped_deadline.priority,
                         'portal_task_id': scraped_deadline.id,
                         'portal_url': scraped_deadline.url,
-                        status="pending"
+                        'status': 'pending'
                     }
                     supabase.table('deadlines').insert(deadline_data).execute()
                     created_count += 1

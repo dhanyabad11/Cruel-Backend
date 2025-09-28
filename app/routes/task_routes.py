@@ -17,7 +17,7 @@ from app.celery_app import celery_app
 from app.tasks.scraping_tasks import scrape_portal, scrape_user_portals, scrape_all_portals
 from app.tasks.celery_supabase_notification import send_supabase_deadline_reminders, send_deadline_reminder
 
-router = APIRouter(prefix="/tasks", tags=["tasks"])
+router = APIRouter(tags=["tasks"])
 
 
 class TaskResponse(BaseModel):

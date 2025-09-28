@@ -7,7 +7,7 @@ from app.models.user import User
 from app.schemas.deadline import DeadlineCreate, DeadlineUpdate, DeadlineResponse, DeadlineStats
 from app.utils.auth import get_current_active_user
 
-router = APIRouter(prefix="/deadlines", tags=["deadlines"])
+router = APIRouter(tags=["deadlines"])
 
 @router.get("/", response_model=List[DeadlineResponse])
 async def get_deadlines(
