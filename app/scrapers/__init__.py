@@ -6,6 +6,9 @@ from .utils import ScrapingUtils, APIHelper
 from .portal_scrapers.github_scraper import GitHubScraper
 from .portal_scrapers.jira_scraper import JiraScraper
 from .portal_scrapers.trello_scraper import TrelloScraper
+from .portal_scrapers.canvas_scraper import CanvasScraper
+from .portal_scrapers.blackboard_scraper import BlackboardScraper
+from .portal_scrapers.moodle_scraper import MoodleScraper
 
 __all__ = [
     "BaseScraper",
