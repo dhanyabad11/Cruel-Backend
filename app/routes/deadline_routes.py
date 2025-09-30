@@ -39,46 +39,35 @@ async def get_deadlines(
         print(f"DEBUG: Error in deadlines endpoint: {e}")
         raise HTTPException(status_code=500, detail=f"Internal error: {str(e)}")
 
-@router.post("/", response_model=DeadlineResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/")
 async def create_deadline(
-    deadline_data: DeadlineCreate,
-    current_user: Dict[str, Any] = Depends(get_current_user),
-    supabase: Client = Depends(get_supabase_client)
+    deadline_data: dict,
+    current_user: Dict[str, Any] = Depends(get_current_user)
 ):
-    """Create a new deadline in Supabase"""
-    insert_data = deadline_data.dict()
-    insert_data['user_id'] = current_user['id']
-    result = supabase.table('deadlines').insert(insert_data).execute()
-    if not result.data:
-        raise HTTPException(status_code=500, detail="Failed to create deadline")
-    deadline = result.data[0]
-    # Send notification and email for high/urgent deadlines
-    if deadline.get('priority') in ['high', 'urgent']:
-        from app.services.notification_service import get_notification_service, NotificationType
-        from app.services.email_service import send_email
-        notification_service = get_notification_service()
-        # Fetch user phone and email
-        user_result = supabase.table('users').select('phone', 'email').eq('id', current_user['id']).execute()
-        phone = None
-        email = None
-        if user_result.data:
-            phone = user_result.data[0].get('phone')
-            email = user_result.data[0].get('email')
-        if phone:
-            await notification_service.send_deadline_reminder(
-                phone_number=phone,
-                deadline_title=deadline['title'],
-                deadline_date=deadline['deadline_date'],
-                deadline_url=deadline.get('portal_url'),
-                notification_type=NotificationType.WHATSAPP if phone.startswith('whatsapp:') else NotificationType.SMS,
-                priority=deadline['priority']
-            )
-        if email:
-            await send_email(
-                to_email=email,
-                subject=f"[AI Cruel] New {deadline['priority']} Deadline: {deadline['title']}",
-                body=f"A new {deadline['priority']} deadline '{deadline['title']}' is due on {deadline['deadline_date']}.\nDetails: {deadline.get('description', '')}\nURL: {deadline.get('portal_url', '')}"
-            )
+    """Create a new deadline - simplified for testing"""
+    try:
+        print(f"DEBUG: Creating deadline for user: {current_user}")
+        print(f"DEBUG: Raw deadline data: {deadline_data}")
+        
+        # For now, return a simple mock response to test frontend functionality
+        mock_deadline = {
+            "id": 999,
+            "title": deadline_data.get("title", ""),
+            "description": deadline_data.get("description", ""),
+            "due_date": deadline_data.get("due_date", ""),
+            "priority": deadline_data.get("priority", "medium"),
+            "status": "pending",
+            "user_id": current_user['id'],
+            "created_at": datetime.now().isoformat(),
+            "updated_at": datetime.now().isoformat()
+        }
+        
+        print(f"DEBUG: Returning mock deadline: {mock_deadline}")
+        return mock_deadline
+        
+    except Exception as e:
+        print(f"DEBUG: Error creating deadline: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to create deadline: {str(e)}")
     return DeadlineResponse(**deadline)
 
 @router.get("/{deadline_id}", response_model=DeadlineResponse)
