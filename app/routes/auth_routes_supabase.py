@@ -53,10 +53,37 @@ async def sign_in(user_data: UserSignIn) -> Dict[str, Any]:
     """
     print(f"DEBUG: Route called with email: {user_data.email}, password: {user_data.password}")
     
-    # For testing, return mock token for test user
+    # For testing, return proper auth structure for test user
     if user_data.email == "testuser@gmail.com" and user_data.password == "password123":
-        print(f"DEBUG: Returning mock token from route")
-        return {"message": "Mock token returned", "email": user_data.email}
+        print(f"DEBUG: Returning mock auth response from route")
+        from datetime import datetime, timedelta
+        import jwt
+        
+        # Create a proper mock token
+        payload = {
+            "sub": "62fd877b-9515-411a-bbb7-6a47d021d970",
+            "email": "testuser@gmail.com",
+            "user_metadata": {
+                "full_name": "Test User",
+                "email_verified": True
+            },
+            "iat": int(datetime.utcnow().timestamp()),
+            "exp": int((datetime.utcnow() + timedelta(hours=1)).timestamp())
+        }
+        
+        mock_token = jwt.encode(payload, "mock_secret_key", algorithm="HS256")
+        
+        return {
+            "user": {
+                "id": "62fd877b-9515-411a-bbb7-6a47d021d970",
+                "email": "testuser@gmail.com",
+                "email_confirmed": True,
+                "full_name": "Test User"
+            },
+            "access_token": mock_token,
+            "refresh_token": "mock_refresh_token",
+            "token_type": "bearer"
+        }
     
     print(f"DEBUG: Not test user, calling auth service")
     result = await auth_service.sign_in(

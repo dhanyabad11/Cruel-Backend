@@ -10,7 +10,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel
 
 from app.models import User
-from app.utils.auth import get_current_user
+from app.auth_deps import get_current_user
 from app.celery_app import celery_app
 
 # Import task functions for manual triggering
@@ -44,7 +44,7 @@ class TaskResultResponse(BaseModel):
 @router.post("/scraping/portal/{portal_id}", response_model=TaskResponse)
 async def trigger_portal_scrape(
     portal_id: int,
-    current_user: User = Depends(get_current_user)
+    current_user: Dict[str, Any] = Depends(get_current_user)
 ):
     """Trigger manual scraping for a specific portal"""
     task = scrape_portal.apply_async(args=[portal_id])
@@ -60,23 +60,23 @@ async def trigger_portal_scrape(
 
 @router.post("/scraping/user", response_model=TaskResponse)
 async def trigger_user_scrape(
-    current_user: User = Depends(get_current_user)
+    current_user: Dict[str, Any] = Depends(get_current_user)
 ):
     """Trigger manual scraping for current user's portals"""
-    task = scrape_user_portals.apply_async(args=[current_user.id])
+    task = scrape_user_portals.apply_async(args=[current_user['id']])
     
     return TaskResponse(
         task_id=task.id,
         task_name="scrape_user_portals",
         status="started",
         timestamp=datetime.utcnow().isoformat(),
-        message=f"Started scraping portals for user {current_user.id}"
+        message=f"Started scraping portals for user {current_user['id']}"
     )
 
 
 @router.post("/scraping/all", response_model=TaskResponse)
 async def trigger_all_scrape(
-    current_user: User = Depends(get_current_user)
+    current_user: Dict[str, Any] = Depends(get_current_user)
 ):
     """Trigger manual scraping for all portals (admin only)"""
     # In a real app, you'd check for admin permissions here
@@ -94,7 +94,7 @@ async def trigger_all_scrape(
 @router.post("/notifications/deadline-reminder/{deadline_id}", response_model=TaskResponse)
 async def trigger_deadline_reminder(
     deadline_id: int,
-    current_user: User = Depends(get_current_user)
+    current_user: Dict[str, Any] = Depends(get_current_user)
 ):
     """Send manual deadline reminder"""
     task = send_deadline_reminder.apply_async(args=[deadline_id])
@@ -110,7 +110,7 @@ async def trigger_deadline_reminder(
 
 @router.post("/notifications/daily-summary", response_model=TaskResponse)
 async def trigger_daily_summary(
-    current_user: User = Depends(get_current_user)
+    current_user: Dict[str, Any] = Depends(get_current_user)
 ):
     """Trigger manual daily summary for all users"""
     task = send_daily_summaries.apply_async()
@@ -126,7 +126,7 @@ async def trigger_daily_summary(
 
 @router.post("/notifications/check-overdue", response_model=TaskResponse)
 async def trigger_overdue_check(
-    current_user: User = Depends(get_current_user)
+    current_user: Dict[str, Any] = Depends(get_current_user)
 ):
     """Trigger manual overdue deadline check"""
     task = check_overdue_deadlines.apply_async()
@@ -143,7 +143,7 @@ async def trigger_overdue_check(
 @router.post("/maintenance/cleanup-notifications", response_model=TaskResponse)
 async def trigger_notification_cleanup(
     days_to_keep: int = Query(30, ge=1, le=365),
-    current_user: User = Depends(get_current_user)
+    current_user: Dict[str, Any] = Depends(get_current_user)
 ):
     """Trigger cleanup of old notifications"""
     task = cleanup_old_notifications.apply_async(args=[days_to_keep])
@@ -159,7 +159,7 @@ async def trigger_notification_cleanup(
 
 @router.post("/maintenance/health-check", response_model=TaskResponse)
 async def trigger_health_check(
-    current_user: User = Depends(get_current_user)
+    current_user: Dict[str, Any] = Depends(get_current_user)
 ):
     """Trigger system health check"""
     task = health_check.apply_async()
@@ -175,7 +175,7 @@ async def trigger_health_check(
 
 @router.post("/maintenance/generate-stats", response_model=TaskResponse)
 async def trigger_stats_generation(
-    current_user: User = Depends(get_current_user)
+    current_user: Dict[str, Any] = Depends(get_current_user)
 ):
     """Trigger system statistics generation"""
     task = generate_system_stats.apply_async()
@@ -194,7 +194,7 @@ async def trigger_stats_generation(
 @router.get("/status/{task_id}", response_model=TaskResultResponse)
 async def get_task_status(
     task_id: str,
-    current_user: User = Depends(get_current_user)
+    current_user: Dict[str, Any] = Depends(get_current_user)
 ):
     """Get the status and result of a task"""
     try:
@@ -242,7 +242,7 @@ async def get_task_status(
 
 @router.get("/active")
 async def get_active_tasks(
-    current_user: User = Depends(get_current_user)
+    current_user: Dict[str, Any] = Depends(get_current_user)
 ):
     """Get list of currently active tasks"""
     try:
@@ -269,7 +269,7 @@ async def get_active_tasks(
 
 @router.get("/stats")
 async def get_task_stats(
-    current_user: User = Depends(get_current_user)
+    current_user: Dict[str, Any] = Depends(get_current_user)
 ):
     """Get Celery task statistics"""
     try:
@@ -298,7 +298,7 @@ async def get_task_stats(
 @router.post("/cancel/{task_id}")
 async def cancel_task(
     task_id: str,
-    current_user: User = Depends(get_current_user)
+    current_user: Dict[str, Any] = Depends(get_current_user)
 ):
     """Cancel a running task"""
     try:
@@ -322,7 +322,7 @@ async def cancel_task(
 
 @router.get("/schedule")
 async def get_task_schedule(
-    current_user: User = Depends(get_current_user)
+    current_user: Dict[str, Any] = Depends(get_current_user)
 ):
     """Get the current task schedule configuration"""
     try:

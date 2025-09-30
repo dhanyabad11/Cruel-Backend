@@ -4,7 +4,7 @@ Handles WhatsApp chat uploads and deadline extraction
 """
 
 from fastapi import APIRouter, HTTPException, Depends, UploadFile, File, Form
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 import tempfile
 import os
 from datetime import datetime
@@ -21,7 +21,7 @@ router = APIRouter(tags=["whatsapp"])
 async def upload_whatsapp_chat(
     file: UploadFile = File(...),
     auto_create: bool = Form(default=True),
-    current_user: User = Depends(get_current_user),
+    current_user: Dict[str, Any] = Depends(get_current_user),
     supabase: Client = Depends(get_supabase_client)
 ):
     """
@@ -71,7 +71,7 @@ async def upload_whatsapp_chat(
                         'description': deadline_data['description'][:1000],  # Limit description
                         'due_date': deadline_data['due_date'].isoformat(),
                         'priority': deadline_data['priority'],
-                        'user_id': current_user.id,
+                        'user_id': current_user['id'],
                         'status': 'pending',
                         'source': 'whatsapp',
                         'created_at': datetime.now().isoformat(),
@@ -133,7 +133,7 @@ async def parse_single_message(
     message: str = Form(...),
     sender: str = Form(default="User"),
     auto_create: bool = Form(default=False),
-    current_user: User = Depends(get_current_user),
+    current_user: Dict[str, Any] = Depends(get_current_user),
     supabase: Client = Depends(get_supabase_client)
 ):
     """
@@ -169,7 +169,7 @@ async def parse_single_message(
                         'description': deadline_data['description'][:1000],
                         'due_date': deadline_data['due_date'].isoformat(),
                         'priority': deadline_data['priority'],
-                        'user_id': current_user.id,
+                        'user_id': current_user['id'],
                         'status': 'pending',
                         'source': 'whatsapp_message',
                         'created_at': datetime.now().isoformat(),
@@ -266,7 +266,7 @@ async def get_parsing_examples():
 @router.post("/bulk-create")
 async def bulk_create_deadlines(
     deadlines: List[dict],
-    current_user: User = Depends(get_current_user),
+    current_user: Dict[str, Any] = Depends(get_current_user),
     supabase: Client = Depends(get_supabase_client)
 ):
     """
@@ -310,7 +310,7 @@ async def bulk_create_deadlines(
                     'description': str(deadline_data.get('description', ''))[:1000],
                     'due_date': due_date.isoformat(),
                     'priority': deadline_data.get('priority', 'medium'),
-                    'user_id': current_user.id,
+                    'user_id': current_user['id'],
                     'status': 'pending',
                     'source': deadline_data.get('source', 'whatsapp_bulk'),
                     'created_at': datetime.now().isoformat(),

@@ -252,45 +252,54 @@ class SupabaseAuthService:
     async def get_user_from_token(self, access_token: str) -> Optional[Dict[str, Any]]:
         """Get user information from access token"""
         try:
-            # Check if it's a mock token for testing
-            if "testuser@gmail.com" in access_token:
-                print(f"DEBUG: Returning mock user for test token")
-                return {
-                    "id": "62fd877b-9515-411a-bbb7-6a47d021d970",
-                    "email": "testuser@gmail.com",
-                    "email_confirmed": True,
-                    "user_metadata": {
-                        "full_name": "Test User",
-                        "email_verified": True
-                    },
-                    "created_at": None,
-                    "last_sign_in": None
-                }
+            print(f"DEBUG: Validating token: {access_token[:50]}...")
             
             # Decode the JWT token to get user information
             import jwt
             
-            # Decode without verification for now (in production, verify with Supabase's public key)
-            payload = jwt.decode(access_token, options={"verify_signature": False})
-            logger.info(f"Decoded JWT payload: {payload}")
-            
-            user_id = payload.get('sub')
-            email = payload.get('email')
-            
-            if user_id and email:
-                user_info = {
-                    "id": user_id,
-                    "email": email,
-                    "email_confirmed": payload.get('user_metadata', {}).get('email_verified', False),
-                    "user_metadata": payload.get('user_metadata', {}),
-                    "created_at": payload.get('iat'),
-                    "last_sign_in": payload.get('iat')
-                }
-                logger.info(f"Returning user info: {user_info}")
-                return user_info
+            # First, try to decode without verification to see the payload
+            try:
+                payload = jwt.decode(access_token, options={"verify_signature": False})
+                print(f"DEBUG: Decoded JWT payload: {payload}")
                 
-            print(f"DEBUG: Missing user_id or email in token")
-            return None
+                user_id = payload.get('sub')
+                email = payload.get('email')
+                user_metadata = payload.get('user_metadata', {})
+                
+                if user_id and email:
+                    user_info = {
+                        "id": user_id,
+                        "email": email,
+                        "email_confirmed": user_metadata.get('email_verified', True),
+                        "user_metadata": user_metadata,
+                        "created_at": payload.get('iat'),
+                        "last_sign_in": payload.get('iat')
+                    }
+                    print(f"DEBUG: Returning user info: {user_info}")
+                    return user_info
+                else:
+                    print(f"DEBUG: Missing user_id ({user_id}) or email ({email}) in token")
+                    return None
+                    
+            except jwt.DecodeError as decode_error:
+                print(f"DEBUG: JWT decode error: {decode_error}")
+                
+                # Check if it's our mock token format
+                if access_token.startswith("eyJ") and "testuser@gmail.com" in access_token:
+                    print(f"DEBUG: Handling mock token for test user")
+                    return {
+                        "id": "62fd877b-9515-411a-bbb7-6a47d021d970",
+                        "email": "testuser@gmail.com",
+                        "email_confirmed": True,
+                        "user_metadata": {
+                            "full_name": "Test User",
+                            "email_verified": True
+                        },
+                        "created_at": None,
+                        "last_sign_in": None
+                    }
+                
+                return None
                 
         except Exception as e:
             print(f"DEBUG: Token validation error: {e}")
