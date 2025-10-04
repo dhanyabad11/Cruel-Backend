@@ -1,6 +1,18 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from app.database import get_supabase_client
-from app.auth_deps import get_current_user
+from app.auth_deps import@router.delete("/notifications")
+async def @router.get("/reminders")
+async def get_notification_reminders(
+    current_user: dict = Depends(get_current_user)
+):
+    """Get all reminder configurations for the current user"""
+    user_id = current_user.get("id") or current_user.get("sub")
+    supabase = get_supabase_client()notification_settings(
+    current_user: dict = Depends(get_current_user)
+):
+    """Delete notification settings"""
+    user_id = current_user.get("id") or current_user.get("sub")
+    supabase = get_supabase_client()rrent_user
 from app.schemas.notification_settings import (
     NotificationSettingsCreate,
     NotificationSettingsUpdate, 
@@ -21,7 +33,7 @@ async def get_notification_settings(
     current_user: dict = Depends(get_current_user)
 ):
     """Get user's notification settings with all reminder configurations"""
-    user_id = current_user["sub"]
+    user_id = current_user.get("id") or current_user.get("sub")
     supabase = get_supabase_client()
     
     # Get existing settings
@@ -76,7 +88,7 @@ async def create_notification_settings(
     current_user: dict = Depends(get_current_user)
 ):
     """Create or update notification settings"""
-    user_id = current_user["sub"]
+    user_id = current_user.get("id") or current_user.get("sub")
     supabase = get_supabase_client()
     
     # Check if settings already exist
@@ -107,7 +119,7 @@ async def update_notification_settings(
     current_user: dict = Depends(get_current_user)
 ):
     """Update notification settings"""
-    user_id = current_user["sub"]
+    user_id = current_user.get("id") or current_user.get("sub")
     supabase = get_supabase_client()
     
     # Check if settings exist
@@ -184,7 +196,7 @@ async def create_notification_reminder(
     current_user: dict = Depends(get_current_user)
 ):
     """Create or update a notification reminder configuration"""
-    user_id = current_user["sub"]
+    user_id = current_user.get("id") or current_user.get("sub")
     supabase = get_supabase_client()
     
     reminder_dict = reminder_data.dict()
@@ -207,7 +219,7 @@ async def update_bulk_reminders(
     current_user: dict = Depends(get_current_user)
 ):
     """Update multiple reminder configurations at once"""
-    user_id = current_user["sub"]
+    user_id = current_user.get("id") or current_user.get("sub")
     supabase = get_supabase_client()
     
     # First, delete all existing reminders for the user
@@ -232,7 +244,7 @@ async def delete_notification_reminder(
     current_user: dict = Depends(get_current_user)
 ):
     """Delete a specific reminder configuration"""
-    user_id = current_user["sub"]
+    user_id = current_user.get("id") or current_user.get("sub")
     supabase = get_supabase_client()
     
     result = supabase.table("notification_reminders").delete().eq("user_id", user_id).eq("reminder_time", reminder_time).execute()
