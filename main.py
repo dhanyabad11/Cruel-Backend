@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from app.routes import auth_router as auth_routes
-from app.routes import deadline_routes, notification_routes, whatsapp_routes, portal_routes, task_routes
+from app.routes import deadline_routes, notification_routes, whatsapp_routes, portal_routes, task_routes, notification_settings_routes
 from app.config import settings
 from app.services.notification_service import initialize_notification_service
 import uvicorn
@@ -22,13 +22,14 @@ app = FastAPI(
     redoc_url="/redoc"
 )
 
-# CORS middleware
+# CORS middleware - Production-level configuration
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.ALLOWED_ORIGINS,
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["*"],
+    expose_headers=["*"]
 )
 
 # Initialize notification service
@@ -45,6 +46,7 @@ except Exception as e:
 app.include_router(auth_routes, prefix="/api/auth", tags=["authentication"])
 app.include_router(deadline_routes.router, prefix="/api/deadlines", tags=["deadlines"])
 app.include_router(notification_routes.router, prefix="/api/notifications", tags=["notifications"])
+app.include_router(notification_settings_routes.router, tags=["notification-settings"])
 app.include_router(whatsapp_routes.router, tags=["whatsapp"])
 app.include_router(portal_routes.router, prefix="/api/portals", tags=["portals"])
 app.include_router(task_routes.router, prefix="/api", tags=["tasks"])

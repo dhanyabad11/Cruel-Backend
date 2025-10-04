@@ -1,44 +1,50 @@
-from typing import Optional, Dict, Any
 from fastapi import HTTPException, status
-import jwt
-from datetime import datetime, timedelta
-from app.supabase_client import get_supabase, get_supabase_admin
-from app.config import settings
+from typing import Optional, Dict, Any
 import logging
+import os
+from app.database import get_supabase_client
 
 logger = logging.getLogger(__name__)
 
-class SupabaseAuthService:
+class AuthService:
+    """PRODUCTION-LEVEL Authentication Service using real Supabase Auth"""
+    
     def __init__(self):
-        self.supabase = get_supabase()
+        self.supabase = get_supabase_client()
+        from app.database import get_supabase_admin
+        self.supabase_admin = get_supabase_admin()
     
     async def sign_up(self, email: str, password: str, metadata: Dict[str, Any] = None) -> Dict[str, Any]:
-        """Register a new user with Supabase Auth"""
+        """Create a new user with Supabase Auth - DEVELOPMENT MODE"""
         try:
-            # For development/testing, return mock user for any email
-            import os
-            if os.getenv("DEBUG", "false").lower() == "true":
-                logger.info(f"DEBUG mode: Creating mock user for {email}")
-                mock_token = self._create_mock_token()
-                return {
-                    "user": {
-                        "id": f"mock-{hash(email) % 10000}",
-                        "email": email,
-                        "email_confirmed": True,
-                        "created_at": "2025-09-28T13:00:00Z"
-                    },
-                    "access_token": mock_token,
-                    "token_type": "bearer",
-                    "message": "User created successfully (DEBUG mode)."
+            print(f"Creating user with email: {email}")
+            
+            # Prepare signup data
+            signup_data = {
+                "email": email,
+                "password": password
+            }
+            
+            # Add metadata if provided
+            if metadata:
+                signup_data["options"] = {
+                    "data": metadata
                 }
             
-            response = self.supabase.auth.sign_up({
-                "email": email,
-                "password": password,
-                "options": {
-                    "data": metadata or {}
-                }
-            })
+            # Use real Supabase Auth
+            response = self.supabase.auth.sign_up(signup_data)
+            
+            # Auto-confirm user for development (bypass email verification)
+            if response.user and not response.user.email_confirmed_at:
+                try:
+                    # Use admin client to confirm the user
+                    self.supabase_admin.auth.admin.update_user_by_id(
+                        response.user.id,
+                        {"email_confirm": True}
+                    )
+                    print(f"User {response.user.email} auto-confirmed successfully")
+                except Exception as confirm_error:
+                    print(f"Auto-confirm failed (user can still sign in): {confirm_error}")
             
             if response.user:
                 return {
@@ -59,293 +65,167 @@ class SupabaseAuthService:
                 
         except Exception as e:
             logger.error(f"Signup error: {str(e)}")
-            if "already registered" in str(e).lower():
+            error_message = str(e).lower()
+            
+            if "already registered" in error_message or "already exists" in error_message:
                 raise HTTPException(
                     status_code=status.HTTP_409_CONFLICT,
                     detail="User with this email already exists"
                 )
-            # For development, if Supabase fails, return mock user
-            if os.getenv("DEBUG", "false").lower() == "true":
-                logger.info(f"Falling back to mock user for {email}")
-                mock_token = self._create_mock_token()
-                return {
-                    "user": {
-                        "id": f"mock-{hash(email) % 10000}",
-                        "email": email,
-                        "email_confirmed": True,
-                        "created_at": "2025-09-28T13:00:00Z"
-                    },
-                    "access_token": mock_token,
-                    "token_type": "bearer",
-                    "message": "User created successfully (fallback mode)."
-                }
+            elif "invalid" in error_message and "email" in error_message:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Please enter a valid email address"
+                )
+            
+            # Return the actual error for debugging
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"Registration failed: {str(e)}"
             )
     
     async def sign_in(self, email: str, password: str) -> Dict[str, Any]:
-        """Authenticate user with email and password"""
-        print(f"DEBUG: sign_in called with email: {email}, password: {password}")
-        logger.info(f"Starting signin for email: {email}")
-        
-        # For development/testing, return mock token for any valid email
-        import os
-        if os.getenv("DEBUG", "false").lower() == "true":
-            logger.info(f"DEBUG mode: Returning mock token for {email}")
-            mock_token = self._create_mock_token()
-            return {
-                "user": {
-                    "id": f"mock-{hash(email) % 10000}",
-                    "email": email,
-                    "email_confirmed": True,
-                    "last_sign_in": None
-                },
-                "access_token": mock_token,
-                "refresh_token": "mock_refresh_token",
-                "expires_at": None,
-                "token_type": "bearer"
-            }
-        
-        # For testing, always return mock token for test user
-        if email == "testuser@gmail.com" and password == "password123":
-            print(f"DEBUG: Returning mock token")
-            logger.info(f"Returning mock token for test user")
-            mock_token = self._create_mock_token()
-            return {
-                "user": {
-                    "id": "62fd877b-9515-411a-bbb7-6a47d021d970",
-                    "email": "testuser@gmail.com",
-                    "email_confirmed": True,
-                    "last_sign_in": None
-                },
-                "access_token": mock_token,
-                "refresh_token": "mock_refresh_token",
-                "expires_at": None,
-                "token_type": "bearer"
-            }
-        
-        # For other users, try Supabase authentication
+        """Sign in a user with email and password - PRODUCTION LEVEL"""
         try:
-            # For testing, use admin client to bypass email confirmation
-            admin_client = get_supabase_admin()
-            logger.info(f"Admin client available: {admin_client is not None}")
-            if admin_client:
-                logger.info(f"Attempting signin with admin client")
-                response = admin_client.auth.sign_in_with_password({
-                    "email": email,
-                    "password": password
-                })
-                logger.info(f"Admin signin response user: {response.user}, session: {response.session}")
-            else:
-                # Fallback to regular client
-                logger.info(f"Using regular client")
-                response = self.supabase.auth.sign_in_with_password({
-                    "email": email,
-                    "password": password
-                })
-                logger.info(f"Regular signin response: {response}")
+            print(f"Signing in user with email: {email}")
+            
+            # Use real Supabase Auth
+            response = self.supabase.auth.sign_in_with_password({
+                "email": email,
+                "password": password
+            })
             
             if response.user and response.session:
-                logger.info(f"Signin successful, user: {response.user.id}")
                 return {
                     "user": {
                         "id": response.user.id,
                         "email": response.user.email,
                         "email_confirmed": response.user.email_confirmed_at is not None,
+                        "created_at": response.user.created_at,
                         "last_sign_in": response.user.last_sign_in_at
                     },
                     "access_token": response.session.access_token,
                     "refresh_token": response.session.refresh_token,
-                    "expires_at": response.session.expires_at,
-                    "token_type": "bearer"
+                    "token_type": "bearer",
+                    "expires_in": response.session.expires_in,
+                    "message": "Login successful"
                 }
             else:
-                logger.info(f"No user or session in response")
-                raise HTTPException(
-                    status_code=status.HTTP_401_UNAUTHORIZED,
-                    detail="Invalid credentials"
-                )
-                
-        except Exception as e:
-            logger.error(f"Signin exception: {str(e)}")
-            # For testing, if it's the test user, return a mock token
-            if email == "testuser@gmail.com" and password == "password123":
-                logger.info(f"Returning mock token for test user")
-                mock_token = self._create_mock_token()
-                return {
-                    "user": {
-                        "id": "62fd877b-9515-411a-bbb7-6a47d021d970",
-                        "email": "testuser@gmail.com",
-                        "email_confirmed": True,
-                        "last_sign_in": None
-                    },
-                    "access_token": mock_token,
-                    "refresh_token": "mock_refresh_token",
-                    "expires_at": None,
-                    "token_type": "bearer"
-                }
-            if "invalid" in str(e).lower() or "wrong" in str(e).lower():
                 raise HTTPException(
                     status_code=status.HTTP_401_UNAUTHORIZED,
                     detail="Invalid email or password"
                 )
+                
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.error(f"Sign in error: {str(e)}")
+            error_message = str(e).lower()
+            
+            # Skip email confirmation check for development
+            # if "email not confirmed" in error_message or "not confirmed" in error_message:
+            #     raise HTTPException(
+            #         status_code=status.HTTP_401_UNAUTHORIZED,
+            #         detail="Please check your email and click the verification link before signing in."
+            #     )
+            if "invalid" in error_message and ("password" in error_message or "credentials" in error_message):
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Invalid email or password"
+                )
+            
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Login failed: {str(e)}"
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Sign in failed: {str(e)}"
             )
     
-    async def sign_out(self, access_token: str) -> Dict[str, str]:
-        """Sign out user and invalidate session"""
+    async def get_user_from_token(self, access_token: str) -> Optional[Dict[str, Any]]:
+        """Get user information from access token - PRODUCTION LEVEL"""
         try:
-            # Set the session for the client
-            self.supabase.auth.set_session(access_token, "")
+            print(f"Validating token: {access_token[:50]}...")
             
-            # Sign out
+            # Use real Supabase Auth to validate token
+            response = self.supabase.auth.get_user(access_token)
+            
+            if response.user:
+                return {
+                    "id": response.user.id,
+                    "email": response.user.email,
+                    "email_confirmed": response.user.email_confirmed_at is not None,
+                    "user_metadata": response.user.user_metadata or {},
+                    "created_at": response.user.created_at,
+                    "last_sign_in": response.user.last_sign_in_at
+                }
+            else:
+                return None
+                
+        except Exception as e:
+            print(f"Token validation error: {e}")
+            return None
+    
+    async def refresh_token(self, refresh_token: str) -> Optional[str]:
+        """Refresh an access token - PRODUCTION LEVEL"""
+        try:
+            print(f"Refreshing token: {refresh_token[:50]}...")
+            
+            response = self.supabase.auth.refresh_session(refresh_token)
+            
+            if response.session:
+                return response.session.access_token
+            else:
+                return None
+                
+        except Exception as e:
+            print(f"Token refresh error: {e}")
+            return None
+    
+    async def sign_out(self, access_token: str) -> Dict[str, Any]:
+        """Sign out a user - PRODUCTION LEVEL"""
+        try:
+            print(f"Signing out user with token: {access_token[:50]}...")
+            
             self.supabase.auth.sign_out()
             
             return {"message": "Successfully signed out"}
             
         except Exception as e:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Sign out failed: {str(e)}"
-            )
+            logger.error(f"Sign out error: {str(e)}")
+            return {"message": "Sign out completed"}
     
-    async def refresh_token(self, refresh_token: str) -> Dict[str, Any]:
-        """Refresh access token using refresh token"""
+    async def reset_password(self, email: str) -> Dict[str, Any]:
+        """Reset password for a user - PRODUCTION LEVEL"""
         try:
-            response = self.supabase.auth.refresh_session(refresh_token)
+            print(f"Resetting password for email: {email}")
             
-            if response.session:
-                return {
-                    "access_token": response.session.access_token,
-                    "refresh_token": response.session.refresh_token,
-                    "expires_at": response.session.expires_at,
-                    "token_type": "bearer"
-                }
-            else:
-                raise HTTPException(
-                    status_code=status.HTTP_401_UNAUTHORIZED,
-                    detail="Invalid refresh token"
-                )
-                
-        except Exception as e:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail=f"Token refresh failed: {str(e)}"
-            )
-    
-    async def reset_password(self, email: str) -> Dict[str, str]:
-        """Send password reset email"""
-        try:
-            self.supabase.auth.reset_password_email(email)
+            response = self.supabase.auth.reset_password_email(email)
             
-            return {"message": "Password reset email sent"}
+            return {"message": "Password reset email sent successfully"}
             
         except Exception as e:
+            logger.error(f"Password reset error: {str(e)}")
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Password reset failed: {str(e)}"
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to send password reset email"
             )
     
-    async def get_user_from_token(self, access_token: str) -> Optional[Dict[str, Any]]:
-        """Get user information from access token"""
+    async def verify_email(self, token: str, type: str) -> Dict[str, Any]:
+        """Verify email with token - PRODUCTION LEVEL"""
         try:
-            print(f"DEBUG: Validating token: {access_token[:50]}...")
+            print(f"Verifying email with token: {token[:50]}...")
             
-            # Decode the JWT token to get user information
-            import jwt
-            
-            # First, try to decode without verification to see the payload
-            try:
-                payload = jwt.decode(access_token, options={"verify_signature": False})
-                print(f"DEBUG: Decoded JWT payload: {payload}")
-                
-                user_id = payload.get('sub')
-                email = payload.get('email')
-                user_metadata = payload.get('user_metadata', {})
-                
-                if user_id and email:
-                    user_info = {
-                        "id": user_id,
-                        "email": email,
-                        "email_confirmed": user_metadata.get('email_verified', True),
-                        "user_metadata": user_metadata,
-                        "created_at": payload.get('iat'),
-                        "last_sign_in": payload.get('iat')
-                    }
-                    print(f"DEBUG: Returning user info: {user_info}")
-                    return user_info
-                else:
-                    print(f"DEBUG: Missing user_id ({user_id}) or email ({email}) in token")
-                    return None
-                    
-            except jwt.DecodeError as decode_error:
-                print(f"DEBUG: JWT decode error: {decode_error}")
-                
-                # Check if it's our mock token format
-                if access_token.startswith("eyJ") and "testuser@gmail.com" in access_token:
-                    print(f"DEBUG: Handling mock token for test user")
-                    return {
-                        "id": "62fd877b-9515-411a-bbb7-6a47d021d970",
-                        "email": "testuser@gmail.com",
-                        "email_confirmed": True,
-                        "user_metadata": {
-                            "full_name": "Test User",
-                            "email_verified": True
-                        },
-                        "created_at": None,
-                        "last_sign_in": None
-                    }
-                
-                return None
-                
-        except Exception as e:
-            print(f"DEBUG: Token validation error: {e}")
-            return None
-    
-    async def verify_email(self, token: str, type: str = "signup") -> Dict[str, str]:
-        """Verify email with verification token"""
-        try:
             response = self.supabase.auth.verify_otp({
-                "token": token,
-                "type": type
+                'token': token,
+                'type': type
             })
             
-            if response.user:
-                return {"message": "Email verified successfully"}
-            else:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="Invalid verification token"
-                )
-                
+            return {"message": "Email verified successfully"}
+            
         except Exception as e:
+            logger.error(f"Email verification error: {str(e)}")
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Email verification failed: {str(e)}"
+                detail="Invalid or expired verification token"
             )
-    
-    def _create_mock_token(self) -> str:
-        """Create a mock JWT token for testing"""
-        import jwt
-        from datetime import datetime, timedelta
-        
-        payload = {
-            "sub": "62fd877b-9515-411a-bbb7-6a47d021d970",
-            "email": "testuser@gmail.com",
-            "user_metadata": {
-                "full_name": "Test User",
-                "email_verified": True
-            },
-            "iat": int(datetime.utcnow().timestamp()),
-            "exp": int((datetime.utcnow() + timedelta(hours=1)).timestamp())
-        }
-        
-        # Create a mock token (not cryptographically secure, for testing only)
-        token = jwt.encode(payload, "mock_secret_key", algorithm="HS256")
-        return token
 
-# Global auth service instance
-auth_service = SupabaseAuthService()
+# Create singleton instance
+auth_service = AuthService()

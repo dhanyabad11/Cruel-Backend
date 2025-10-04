@@ -20,30 +20,178 @@ async def mock_get_current_user() -> User:
         is_verified=True,
         created_at=datetime.utcnow()
     )
-from app.services.notification_service import get_notification_service, NotificationType
+from app.services.enhanced_notification_service import get_notification_service, NotificationType
 
 router = APIRouter(tags=["notifications"])
+
+@router.post("/test-notifications-public")
+async def test_notifications_public(
+    phone_number: Optional[str] = Query(None, description="Phone number for SMS/WhatsApp testing (format: +1234567890)"),
+    test_email: Optional[str] = Query(None, description="Email address for testing (optional)")
+):
+    """Test all notification channels (public endpoint for testing)"""
+    try:
+        notification_service = get_notification_service()
+        config_status = notification_service.validate_config()
+
+        # Use provided test email or default to a placeholder
+        user_email = test_email or "test@example.com"
+
+        test_results = {
+            "config_status": config_status,
+            "user_email": user_email,
+            "phone_number": phone_number,
+            "tests": {}
+        }
+
+        # Test email if configured
+        if config_status.get("email", False):
+            try:
+                email_result = await notification_service.send_email_notification(
+                    to_email=user_email,
+                    subject="[AI Cruel] Test Email Notification",
+                    body="This is a test email notification from your AI Cruel system. If you receive this, email notifications are working correctly!"
+                )
+                test_results["tests"]["email"] = email_result
+            except Exception as e:
+                test_results["tests"]["email"] = {"success": False, "error": str(e)}
+        else:
+            test_results["tests"]["email"] = {"success": False, "error": "Email not configured"}
+
+        # Test SMS if configured and phone number provided
+        if config_status.get("sms", False) and phone_number:
+            try:
+                sms_result = await notification_service.send_sms_notification(
+                    phone_number=phone_number,
+                    message=f"This is a test SMS from AI Cruel. Test sent at {datetime.utcnow().isoformat()}"
+                )
+                test_results["tests"]["sms"] = sms_result
+            except Exception as e:
+                test_results["tests"]["sms"] = {"success": False, "error": str(e)}
+        else:
+            test_results["tests"]["sms"] = {"success": False, "error": f"SMS not configured or no phone number provided. Config: {config_status.get('sms', False)}, Phone: {phone_number}"}
+
+        # Test WhatsApp if configured and phone number provided
+        if config_status.get("whatsapp", False) and phone_number:
+            try:
+                whatsapp_result = await notification_service.send_whatsapp_notification(
+                    phone_number=phone_number,
+                    message=f"This is a test WhatsApp message from AI Cruel. Test sent at {datetime.utcnow().isoformat()}"
+                )
+                test_results["tests"]["whatsapp"] = whatsapp_result
+            except Exception as e:
+                test_results["tests"]["whatsapp"] = {"success": False, "error": str(e)}
+        else:
+            test_results["tests"]["whatsapp"] = {"success": False, "error": f"WhatsApp not configured or no phone number provided. Config: {config_status.get('whatsapp', False)}, Phone: {phone_number}"}
+
+        # Test push notifications
+        try:
+            push_result = await notification_service.send_push_notification(
+                user_id=mock_user['id'],
+                title="Test Push Notification",
+                body="This is a test push notification from AI Cruel"
+            )
+            test_results["tests"]["push"] = push_result
+        except Exception as e:
+            test_results["tests"]["push"] = {"success": False, "error": str(e)}
+
+        return test_results
+
+    except Exception as e:
+        print(f"ERROR in test_notifications_public: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Test failed: {str(e)}")
+
+@router.post("/test-notifications")
+async def test_notifications(
+    current_user: Dict[str, Any] = Depends(get_current_user),
+    supabase: Client = Depends(get_supabase_client)
+):
+    """Test all notification channels"""
+    try:
+        notification_service = get_notification_service()
+        config_status = notification_service.validate_config()
+
+        # Get user email from database
+        user_email = None
+        if current_user and current_user.get('id'):
+            user_result = supabase.table('users').select('email').eq('id', current_user['id']).execute()
+            if user_result.data:
+                user_email = user_result.data[0].get('email')
+
+        # Fallback to current user email or test email
+        if not user_email:
+            user_email = current_user.get('email', 'test@example.com')
+        
+        test_results = {
+            "config_status": config_status,
+            "user_email": user_email,
+            "user_id": current_user.get('id') if current_user else None,
+            "tests": {}
+        }
+        
+        # Test email if configured and user has email
+        if config_status.get("email", False) and user_email:
+            try:
+                email_result = await notification_service.send_email_notification(
+                    to_email=user_email,
+                    subject="[AI Cruel] Test Email Notification",
+                    body="This is a test email notification from your AI Cruel system. If you receive this, email notifications are working correctly!"
+                )
+                test_results["tests"]["email"] = email_result
+            except Exception as e:
+                test_results["tests"]["email"] = {"success": False, "error": str(e)}
+        else:
+            test_results["tests"]["email"] = {"success": False, "error": "Email not configured or no user email"}
+        
+        # Test SMS (would need phone number)
+        test_results["tests"]["sms"] = {"success": False, "error": "Need phone number for SMS test"}
+        
+        # Test WhatsApp (would need phone number)  
+        test_results["tests"]["whatsapp"] = {"success": False, "error": "Need phone number for WhatsApp test"}
+        
+        # Test push notifications
+        try:
+            push_result = await notification_service.send_push_notification(
+                user_id=current_user['id'],
+                title="Test Push Notification",
+                body="This is a test push notification from AI Cruel"
+            )
+            test_results["tests"]["push"] = push_result
+        except Exception as e:
+            test_results["tests"]["push"] = {"success": False, "error": str(e)}
+        
+        return test_results
+        
+    except Exception as e:
+        print(f"ERROR in test_notifications: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Test failed: {str(e)}")
 
 @router.get("/")
 async def list_notifications(
     page: int = Query(1, ge=1),
     per_page: int = Query(20, ge=1, le=100),
-    notification_type: Optional[str] = Query(None, regex="^(sms|whatsapp)$"),
+    notification_type: Optional[str] = Query(None, regex="^(email|sms|whatsapp|push)$"),
     status: Optional[str] = Query(None, regex="^(pending|sent|delivered|failed)$"),
     current_user: Dict[str, Any] = Depends(get_current_user),
     supabase: Client = Depends(get_supabase_client)
 ):
-    """List notifications for the current user from Supabase"""
+    """List notifications for the current user"""
     try:
         print(f"DEBUG: Current user in notifications: {current_user}")
-        # For now, return empty list until we fix database issues
+        
+        # Get notification service status
+        notification_service = get_notification_service()
+        config_status = notification_service.validate_config()
+        
+        # For now, return configuration status
         return {
             "message": "Notifications endpoint working!",
             "user_id": current_user['id'],
             "notifications": [],
             "total": 0,
             "page": page,
-            "per_page": per_page
+            "per_page": per_page,
+            "service_status": config_status
         }
         
         # Original logic commented out for now
@@ -194,58 +342,86 @@ async def delete_notification_preferences(
 @router.post("/send-custom-notification", response_model=NotificationSendResponse)
 async def send_custom_notification(
     request: SendNotificationRequest,
-    
+    current_user: Dict[str, Any] = Depends(get_current_user),
     supabase: Client = Depends(get_supabase_client)
 ):
-    """Send a custom notification using Supabase"""
+    """Send a custom notification using the enhanced notification service"""
     notification_service = get_notification_service()
     if not notification_service:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Notification service not available"
         )
-    # Create notification record in Supabase
-    notification_insert = {
-        'user_id': current_user['id'],
-        'deadline_id': request.deadline_id,
-        'notification_type': request.notification_type,
-        'message': request.message,
-        'sent_at': datetime.utcnow().isoformat(),
-        'delivery_status': 'pending'
-    }
-    result = supabase.table('notifications').insert(notification_insert).execute()
-    if not result.data:
-        raise HTTPException(status_code=500, detail="Failed to create notification")
-    notification = result.data[0]
-    # Send notification
-    notification_type = NotificationType.WHATSAPP if request.notification_type == 'whatsapp' else NotificationType.SMS
-    send_result = await notification_service.send_notification(
-        phone_number=request.phone_number,
-        message=request.message,
-        notification_type=notification_type
-    )
-    # Also send email if user has email
-    from app.services.email_service import send_email
-    user_result = supabase.table('users').select('email').eq('id', current_user['id']).execute()
-    email = None
-    if user_result.data:
-        email = user_result.data[0].get('email')
-    if email:
-        await send_email(
-            to_email=email,
-            subject="[AI Cruel] Notification",
-            body=request.message
-        )
-    # Update notification record in Supabase
-    update_data = {
-        'delivery_status': send_result['status'],
-        'sent_at': datetime.utcnow().isoformat() if send_result['success'] else None,
-        'message_sid': send_result.get('message_sid'),
-        'error_message': send_result.get('error')
-    }
-    supabase.table('notifications').update(update_data).eq('id', notification['id']).execute()
-    send_result['notification_id'] = notification['id']
-    return NotificationSendResponse(**send_result)
+    
+    try:
+        # Create notification record
+        notification_insert = {
+            'user_id': current_user['id'],
+            'deadline_id': request.deadline_id,
+            'notification_type': request.notification_type,
+            'message': request.message,
+            'sent_at': datetime.utcnow().isoformat(),
+            'delivery_status': 'pending'
+        }
+        
+        # Send notification based on type
+        send_result = {"success": False, "status": "failed", "error": "Unknown notification type"}
+        
+        if request.notification_type == 'email':
+            # Get user email
+            user_result = supabase.table('users').select('email').eq('id', current_user['id']).execute()
+            if user_result.data and user_result.data[0].get('email'):
+                email = user_result.data[0]['email']
+                send_result = await notification_service.send_email_notification(
+                    to_email=email,
+                    subject="[AI Cruel] Deadline Alert",
+                    body=request.message
+                )
+            else:
+                send_result = {"success": False, "status": "failed", "error": "No email address found"}
+                
+        elif request.notification_type == 'sms':
+            if hasattr(request, 'phone_number') and request.phone_number:
+                send_result = await notification_service.send_sms_notification(
+                    to_number=request.phone_number,
+                    message=request.message
+                )
+            else:
+                send_result = {"success": False, "status": "failed", "error": "No phone number provided"}
+                
+        elif request.notification_type == 'whatsapp':
+            if hasattr(request, 'phone_number') and request.phone_number:
+                send_result = await notification_service.send_whatsapp_notification(
+                    to_number=request.phone_number,
+                    message=request.message
+                )
+            else:
+                send_result = {"success": False, "status": "failed", "error": "No phone number provided"}
+                
+        elif request.notification_type == 'push':
+            send_result = await notification_service.send_push_notification(
+                user_id=current_user['id'],
+                title="Deadline Alert",
+                body=request.message
+            )
+        
+        # Update notification status
+        notification_insert['delivery_status'] = send_result['status']
+        if send_result.get('message_sid'):
+            notification_insert['message_sid'] = send_result['message_sid']
+        if send_result.get('error'):
+            notification_insert['error_message'] = send_result['error']
+            
+        # Save to database
+        result = supabase.table('notifications').insert(notification_insert).execute()
+        notification_id = result.data[0]['id'] if result.data else None
+        
+        send_result['notification_id'] = notification_id
+        return NotificationSendResponse(**send_result)
+        
+    except Exception as e:
+        print(f"ERROR in send_custom_notification: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to send notification: {str(e)}")
 
 
 @router.post("/send-deadline-reminder", response_model=NotificationSendResponse)

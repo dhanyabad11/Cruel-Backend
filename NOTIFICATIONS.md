@@ -1,6 +1,31 @@
 # AI Cruel - Twilio Notification System
 
-## Overview
+##### Phone #### Email Testing
+
+**Important**: Email notifications use your actual registered email address when logged in. The system will:
+
+1. **Authenticated users**: Send test emails to your real email address from the database
+2. **Public testing**: Uses `test@example.com` (placeholder - will fail with domain error)
+3. **Custom testing**: You can specify a test email using the `test_email` parameter
+
+**Test Email Content**:
+
+````
+Subject: [AI Cruel] Test Email Notification
+
+This is a test email notification from your AI Cruel system. If you receive this, email notifications are working correctly!
+```Formats
+
+**Important**: Phone numbers must be in E.164 format (international format):
+
+- **India**: `+91XXXXXXXXXX` (e.g., `+919876543210`)
+- **United States**: `+1XXXXXXXXXX` (e.g., `+1234567890`)
+- **United Kingdom**: `+44XXXXXXXXXX` (e.g., `+447700900000`)
+
+**Twilio Trial Account Limitations**:
+- Can only send SMS/WhatsApp to verified phone numbers
+- Add your phone number to: Twilio Console → Phone Numbers → Verified Caller IDs
+- WhatsApp requires additional opt-in for Business messagingiew
 
 The AI Cruel deadline manager now includes a comprehensive notification system that can send SMS and WhatsApp messages via Twilio. This system provides deadline reminders, daily summaries, and overdue alerts to help users stay on top of their deadlines.
 
@@ -8,12 +33,45 @@ The AI Cruel deadline manager now includes a comprehensive notification system t
 
 ### Core Notification Service
 
--   **TwilioNotificationService**: Complete service for sending SMS and WhatsApp notifications
+-   **EnhancedNotificationService**: Complete service for sending Email, SMS, WhatsApp, and Push notifications
 -   **Multiple notification types**:
+    -   Email notifications via SMTP
+    -   SMS notifications via Twilio
+    -   WhatsApp notifications via Twilio
+    -   Push notifications (framework ready)
     -   Deadline reminders with countdown and urgency indicators
     -   Daily summaries of upcoming deadlines
     -   Overdue alerts for missed deadlines
     -   Custom notifications
+
+### Testing Notifications
+
+#### Frontend Testing
+
+1. Navigate to `/notifications` page in the frontend
+2. Enter your real phone number (format: +1234567890) in the phone number field
+3. Click "Test SMS" or "Test WhatsApp" buttons
+4. Check your phone for the test message
+
+#### API Testing
+
+```bash
+# Test all notifications (without phone number)
+curl -X POST "http://localhost:8000/api/notifications/test-notifications-public" \
+  -H "Content-Type: application/json"
+
+# Test with phone number for SMS/WhatsApp
+curl -X POST "http://localhost:8000/api/notifications/test-notifications-public?phone_number=+1234567890" \
+  -H "Content-Type: application/json"
+````
+
+#### Important Notes for Testing
+
+-   **Phone Numbers**: Must be real, verified phone numbers in E.164 format (+1234567890)
+-   **Twilio Trial**: Free trial accounts can only send to verified numbers
+-   **WhatsApp**: Requires phone number to be opted-in for WhatsApp Business
+-   **Email**: Works with any valid email address
+-   **Push**: Currently queued (framework ready for implementation)
 
 ### Database Models
 
