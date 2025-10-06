@@ -12,11 +12,18 @@ class SupabaseConfig:
         if not self.url or not self.key:
             raise ValueError("Supabase URL and ANON_KEY must be set in environment variables")
         
-        self.client: Client = create_client(self.url, self.key)
+        # Create client with minimal options (no proxy parameter)
+        self.client: Client = create_client(
+            supabase_url=self.url,
+            supabase_key=self.key
+        )
         
         # Service client for admin operations
         if self.service_key:
-            self.service_client: Client = create_client(self.url, self.service_key)
+            self.service_client: Client = create_client(
+                supabase_url=self.url,
+                supabase_key=self.service_key
+            )
         else:
             self.service_client = None
     

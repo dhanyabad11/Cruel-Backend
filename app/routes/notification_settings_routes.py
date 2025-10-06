@@ -1,18 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from app.database import get_supabase_client
-from app.auth_deps import@router.delete("/notifications")
-async def @router.get("/reminders")
-async def get_notification_reminders(
-    current_user: dict = Depends(get_current_user)
-):
-    """Get all reminder configurations for the current user"""
-    user_id = current_user.get("id") or current_user.get("sub")
-    supabase = get_supabase_client()notification_settings(
-    current_user: dict = Depends(get_current_user)
-):
-    """Delete notification settings"""
-    user_id = current_user.get("id") or current_user.get("sub")
-    supabase = get_supabase_client()rrent_user
+from app.auth_deps import get_current_user
 from app.schemas.notification_settings import (
     NotificationSettingsCreate,
     NotificationSettingsUpdate, 
@@ -82,37 +70,6 @@ async def get_notification_settings(
         "reminders": reminders
     }
 
-@router.post("/notifications")
-async def create_notification_settings(
-    settings_data: NotificationSettingsCreate,
-    current_user: dict = Depends(get_current_user)
-):
-    """Create or update notification settings"""
-    user_id = current_user.get("id") or current_user.get("sub")
-    supabase = get_supabase_client()
-    
-    # Check if settings already exist
-    existing_result = supabase.table("notification_settings").select("*").eq("user_id", user_id).execute()
-    
-    settings_dict = settings_data.dict(exclude_unset=True)
-    settings_dict["user_id"] = user_id
-    settings_dict["updated_at"] = datetime.utcnow().isoformat()
-    
-    if existing_result.data:
-        # Update existing settings
-        result = supabase.table("notification_settings").update(settings_dict).eq("user_id", user_id).execute()
-        if result.data:
-            return result.data[0]
-        else:
-            raise HTTPException(status_code=500, detail="Failed to update notification settings")
-    else:
-        # Create new settings
-        result = supabase.table("notification_settings").insert(settings_dict).execute()
-        if result.data:
-            return result.data[0]
-        else:
-            raise HTTPException(status_code=500, detail="Failed to create notification settings")
-
 @router.put("/notifications")
 async def update_notification_settings(
     settings_data: NotificationSettingsUpdate,
@@ -122,69 +79,26 @@ async def update_notification_settings(
     user_id = current_user.get("id") or current_user.get("sub")
     supabase = get_supabase_client()
     
-    # Check if settings exist
-    existing_result = supabase.table("notification_settings").select("*").eq("user_id", user_id).execute()
-    
-    if not existing_result.data:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Notification settings not found"
-        )
-    
     # Update only provided fields
     settings_dict = settings_data.dict(exclude_unset=True)
     settings_dict["updated_at"] = datetime.utcnow().isoformat()
     
-    result = supabase.table("notification_settings").update(settings_dict).eq("user_id", user_id).execute()
+    result = supabase.table("notification_settings").upsert(
+        {**settings_dict, "user_id": user_id},
+        on_conflict="user_id"
+    ).execute()
     
     if result.data:
         return result.data[0]
     else:
         raise HTTPException(status_code=500, detail="Failed to update notification settings")
 
-@router.delete("/notifications")
-async def delete_notification_settings(
-    current_user: dict = Depends(get_current_user)
-):
-    """Reset notification settings to defaults"""
-    user_id = current_user["sub"]
-    supabase = get_supabase_client()
-    
-    # Check if settings exist
-    existing_result = supabase.table("notification_settings").select("*").eq("user_id", user_id).execute()
-    
-    if existing_result.data:
-        # Reset to defaults
-        default_settings = {
-            "email": current_user.get("email"),
-            "phone_number": None,
-            "whatsapp_number": None,
-            "email_enabled": True,
-            "sms_enabled": False,
-            "whatsapp_enabled": False,
-            "push_enabled": True,
-            "reminder_frequency": "1_day",
-            "updated_at": datetime.utcnow().isoformat()
-        }
-        
-        result = supabase.table("notification_settings").update(default_settings).eq("user_id", user_id).execute()
-        if result.data:
-            return {"message": "Notification settings reset to defaults"}
-        else:
-            raise HTTPException(status_code=500, detail="Failed to reset notification settings")
-    else:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Notification settings not found"
-        )
-
-# Reminder Management Routes
 @router.get("/reminders")
 async def get_notification_reminders(
     current_user: dict = Depends(get_current_user)
 ):
-    """Get all notification reminder configurations for the user"""
-    user_id = current_user["sub"]
+    """Get all notification reminder configurations"""
+    user_id = current_user.get("id") or current_user.get("sub")
     supabase = get_supabase_client()
     
     result = supabase.table("notification_reminders").select("*").eq("user_id", user_id).order("reminder_time").execute()

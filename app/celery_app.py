@@ -76,6 +76,13 @@ celery_app.conf.update(
             'schedule': crontab(minute='*/15'),
             'options': {'queue': 'notifications'}
         },
+        
+        # Check and send email reminders every 5 minutes
+        'check-email-reminders': {
+            'task': 'check_and_send_email_reminders',
+            'schedule': crontab(minute='*/5'),
+            'options': {'queue': 'notifications'}
+        },
     }
 )
 

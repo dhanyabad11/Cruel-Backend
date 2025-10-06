@@ -116,17 +116,25 @@ async def update_deadline(
         # Update in Supabase
         result = supabase.table('deadlines').update(update_data).eq('id', deadline_id).eq('user_id', current_user['id']).execute()
         
-        if not result.data:
+        # Supabase returns empty array on successful update, need to fetch the updated record
+        if result.data is not None:
+            # Fetch the updated deadline
+            fetch_result = supabase.table('deadlines').select('*').eq('id', deadline_id).eq('user_id', current_user['id']).execute()
+            if not fetch_result.data:
+                raise HTTPException(status_code=404, detail="Deadline not found after update")
+            updated_deadline = fetch_result.data[0]
+            print(f"DEBUG: Successfully updated deadline: {updated_deadline}")
+            return updated_deadline
+        else:
             raise HTTPException(status_code=404, detail="Deadline not found or update failed")
-            
-        updated_deadline = result.data[0]
-        print(f"DEBUG: Successfully updated deadline: {updated_deadline}")
         
-        return updated_deadline
-        
+    except HTTPException:
+        raise
     except Exception as e:
         print(f"ERROR: Failed to update deadline: {e}")
-        raise HTTPException(status_code=500, detail="Failed to update deadline. Please check your database configuration.")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Failed to update deadline: {str(e)}")
 
 @router.delete("/{deadline_id}")
 async def delete_deadline(
@@ -138,17 +146,29 @@ async def delete_deadline(
     try:
         print(f"DEBUG: Deleting deadline {deadline_id} for user: {current_user['id']}")
         
+        # First check if deadline exists
+        check_result = supabase.table('deadlines').select('id').eq('id', deadline_id).eq('user_id', current_user['id']).execute()
+        
+        if not check_result.data:
+            raise HTTPException(status_code=404, detail="Deadline not found")
+        
+        # Now delete it - Supabase returns empty array on successful delete
         result = supabase.table('deadlines').delete().eq('id', deadline_id).eq('user_id', current_user['id']).execute()
         
-        if not result.data:
-            raise HTTPException(status_code=404, detail="Deadline not found")
-            
-        print(f"DEBUG: Successfully deleted deadline: {deadline_id}")
-        return {"message": "Deadline deleted successfully"}
+        # Check if delete was successful (result should not be None)
+        if result.data is not None:
+            print(f"DEBUG: Successfully deleted deadline: {deadline_id}")
+            return {"message": "Deadline deleted successfully"}
+        else:
+            raise HTTPException(status_code=500, detail="Failed to delete deadline")
         
+    except HTTPException:
+        raise
     except Exception as e:
         print(f"ERROR: Failed to delete deadline: {e}")
-        raise HTTPException(status_code=500, detail="Failed to delete deadline. Please check your database configuration.")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Failed to delete deadline: {str(e)}")
 
 @router.get("/stats/overview", response_model=DeadlineStats)
 async def get_deadline_stats(
