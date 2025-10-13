@@ -1,0 +1,10 @@
+services:
+    - type: web
+      name: cruel-backend
+      runtime: docker
+      dockerfilePath: ./Dockerfile
+      region: oregon
+      plan: free
+      branch: main
+      healthCheckPath: /
+      envVarsFromGroup: cruel-backend-env
