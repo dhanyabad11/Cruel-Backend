@@ -20,5 +20,8 @@ COPY . .
 
 ENV PYTHONUNBUFFERED=1
 
-# Use $PORT environment variable from Render
-CMD uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000}
+# Make start script executable
+RUN chmod +x start.sh
+
+# Use startup script that runs Celery + FastAPI together
+CMD ["./start.sh"]
