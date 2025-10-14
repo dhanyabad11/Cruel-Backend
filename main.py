@@ -63,6 +63,16 @@ async def serve_test_page():
 async def health_check():
     return {"status": "healthy", "service": "ai-cruel-backend"}
 
+@app.get("/debug/config")
+async def debug_config():
+    """Debug endpoint to check environment variables"""
+    import os
+    return {
+        "redis_url_from_settings": settings.REDIS_URL[:50] + "..." if len(settings.REDIS_URL) > 50 else settings.REDIS_URL,
+        "redis_url_from_env": os.getenv("REDIS_URL", "NOT SET")[:50] + "..." if os.getenv("REDIS_URL") else "NOT SET",
+        "env_vars_loaded": "REDIS_URL" in os.environ
+    }
+
 if __name__ == "__main__":
     uvicorn.run(
         "main:app",
