@@ -21,8 +21,8 @@ COPY . .
 
 ENV PYTHONUNBUFFERED=1
 
-# Make start script executable
-RUN chmod +x start.sh
+# Make start scripts executable
+RUN chmod +x start.sh start_services.py
 
-# Use startup script that runs Celery + FastAPI together
-CMD ["/bin/bash", "./start.sh"]
+# Use Python startup script that runs Celery + FastAPI together
+CMD ["python", "start_services.py"]
