@@ -9,9 +9,17 @@ This module sets up Celery for background task processing including:
 """
 
 import os
+import ssl
 from celery import Celery
 from celery.schedules import crontab
 from app.config import settings
+
+# Configure SSL for Redis if using rediss://
+broker_use_ssl = None
+if settings.REDIS_URL.startswith('rediss://'):
+    broker_use_ssl = {
+        'ssl_cert_reqs': ssl.CERT_NONE  # For Upstash, we don't verify certs
+    }
 
 # Create Celery instance
 celery_app = Celery(
@@ -23,6 +31,11 @@ celery_app = Celery(
         'app.tasks.celery_supabase_notification'
     ]
 )
+
+# Apply SSL configuration
+if broker_use_ssl:
+    celery_app.conf.broker_use_ssl = broker_use_ssl
+    celery_app.conf.redis_backend_use_ssl = broker_use_ssl
 
 # Celery configuration
 celery_app.conf.update(
