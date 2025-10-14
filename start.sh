@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# Print environment for debugging
+echo "Starting services with REDIS_URL: ${REDIS_URL:0:50}..."
+
 # Start Celery Beat in background
 celery -A app.celery_app beat --loglevel=info &
 
