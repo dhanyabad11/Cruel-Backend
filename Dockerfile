@@ -1,11 +1,12 @@
 # Backend Dockerfile for FastAPI
 FROM python:3.10-slim
 
-# Install build dependencies for compiling Python packages (blis, spacy)
+# Install build dependencies and bash
 RUN apt-get update && apt-get install -y \
     gcc \
     g++ \
     build-essential \
+    bash \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
@@ -24,4 +25,4 @@ ENV PYTHONUNBUFFERED=1
 RUN chmod +x start.sh
 
 # Use startup script that runs Celery + FastAPI together
-CMD ["./start.sh"]
+CMD ["/bin/bash", "./start.sh"]
