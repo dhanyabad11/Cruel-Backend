@@ -1,0 +1,125 @@
+name: ai-cruel-backend
+region: nyc
+services:
+  - name: web
+    # Build Configuration
+    dockerfile_path: Dockerfile
+    source_dir: /
+    github:
+      repo: dhanyabad11/Cruel-Backend
+      branch: main
+      deploy_on_push: true
+    
+    # Resource Configuration
+    instance_count: 1
+    instance_size_slug: basic-xxs  # $5/month - 512MB RAM, 1 vCPU
+    # For better performance, upgrade to:
+    # instance_size_slug: basic-xs   # $12/month - 1GB RAM, 1 vCPU
+    # instance_size_slug: basic-s    # $24/month - 2GB RAM, 2 vCPU
+    
+    # Port Configuration
+    http_port: 8000
+    
+    # Health Check
+    health_check:
+      http_path: /health
+      initial_delay_seconds: 60
+      period_seconds: 10
+      timeout_seconds: 5
+      success_threshold: 1
+      failure_threshold: 3
+    
+    # Environment Variables
+    envs:
+      # Application
+      - key: HOST
+        value: "0.0.0.0"
+      - key: PORT
+        value: "8000"
+      - key: DEBUG
+        value: "False"
+      - key: ENVIRONMENT
+        value: "production"
+      
+      # CORS (Update after frontend deployment)
+      - key: ALLOWED_ORIGINS
+        value: "http://localhost:3000,https://your-frontend.vercel.app"
+      
+      # Supabase (Get from Supabase Dashboard)
+      - key: SUPABASE_URL
+        value: "https://your-project.supabase.co"
+        type: SECRET
+      - key: SUPABASE_ANON_KEY
+        value: "your-supabase-anon-key"
+        type: SECRET
+      - key: SUPABASE_SERVICE_KEY
+        value: "your-supabase-service-role-key"
+        type: SECRET
+      
+      # Database
+      - key: DATABASE_URL
+        value: "postgresql://postgres:password@db.supabase.co:5432/postgres"
+        type: SECRET
+      
+      # Redis (Use Upstash or DO Managed Redis)
+      - key: REDIS_URL
+        value: "rediss://default:password@host:6379"
+        type: SECRET
+      
+      # Twilio
+      - key: TWILIO_ACCOUNT_SID
+        value: "your-twilio-account-sid"
+        type: SECRET
+      - key: TWILIO_AUTH_TOKEN
+        value: "your-twilio-auth-token"
+        type: SECRET
+      - key: TWILIO_PHONE_NUMBER
+        value: "+1234567890"
+        type: SECRET
+      - key: TWILIO_WHATSAPP_NUMBER
+        value: "whatsapp:+1234567890"
+        type: SECRET
+      
+      # Email/SMTP
+      - key: SMTP_HOST
+        value: "smtp.gmail.com"
+      - key: SMTP_PORT
+        value: "587"
+      - key: SMTP_USERNAME
+        value: "your-email@gmail.com"
+        type: SECRET
+      - key: SMTP_PASSWORD
+        value: "your-app-password"
+        type: SECRET
+      - key: SMTP_FROM_EMAIL
+        value: "your-email@gmail.com"
+      - key: SMTP_FROM_NAME
+        value: "AI Cruel Deadline Manager"
+      
+      # Security
+      - key: SECRET_KEY
+        value: "your-super-secret-jwt-key"
+        type: SECRET
+      - key: ALGORITHM
+        value: "HS256"
+      - key: ACCESS_TOKEN_EXPIRE_MINUTES
+        value: "30"
+      
+      # Logging
+      - key: LOG_LEVEL
+        value: "INFO"
+
+# Optional: Add a database (if you want DO-managed PostgreSQL instead of Supabase)
+# databases:
+#   - name: cruel-db
+#     engine: PG
+#     version: "15"
+#     production: true
+#     cluster_name: cruel-cluster
+
+# Optional: Add Redis (if you want DO-managed Redis instead of Upstash)
+# databases:
+#   - name: cruel-redis
+#     engine: REDIS
+#     version: "7"
+#     production: true
