@@ -1,6 +1,8 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from typing import List
+from pydantic import field_validator
+from typing import List, Union
 import os
+import json
 from dotenv import load_dotenv
 
 # Load environment variables from .env file
@@ -24,12 +26,20 @@ class Settings(BaseSettings):
     SUPABASE_SERVICE_KEY: str = ""
     
     # CORS - Development settings (configure properly for production)
-    ALLOWED_ORIGINS: List[str] = [
-        "http://localhost:3000", 
-        "http://127.0.0.1:3000",
-        "http://localhost:3001",
-        "http://127.0.0.1:3001"
-    ]
+    ALLOWED_ORIGINS: Union[List[str], str] = "*"
+    
+    @field_validator('ALLOWED_ORIGINS', mode='before')
+    @classmethod
+    def parse_allowed_origins(cls, v):
+        if isinstance(v, str):
+            if v == "*":
+                return ["*"]
+            try:
+                return json.loads(v)
+            except json.JSONDecodeError:
+                # If it's a comma-separated string
+                return [origin.strip() for origin in v.split(',')]
+        return v
     
     # Twilio Settings
     TWILIO_ACCOUNT_SID: str = ""
