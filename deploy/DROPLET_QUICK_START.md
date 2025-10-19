@@ -33,11 +33,12 @@ chmod +x deploy/create-droplet.sh
 ```
 
 This script will:
-- ✅ Create a new Ubuntu 22.04 droplet
-- ✅ Install Docker, Nginx, and all dependencies
-- ✅ Configure firewall and security
-- ✅ Set up automatic deployment
-- ✅ Create useful management scripts
+
+-   ✅ Create a new Ubuntu 22.04 droplet
+-   ✅ Install Docker, Nginx, and all dependencies
+-   ✅ Configure firewall and security
+-   ✅ Set up automatic deployment
+-   ✅ Create useful management scripts
 
 **Total time:** ~10 minutes
 
@@ -47,12 +48,12 @@ This script will:
 
 ### Automated Setup Includes:
 
-- **Docker & Docker Compose** - Containerized deployment
-- **Nginx** - Reverse proxy with SSL support
-- **UFW Firewall** - Ports 22, 80, 443 configured
-- **Systemd Service** - Auto-start on reboot
-- **Deployment Scripts** - One-command updates
-- **Health Checks** - Automatic monitoring
+-   **Docker & Docker Compose** - Containerized deployment
+-   **Nginx** - Reverse proxy with SSL support
+-   **UFW Firewall** - Ports 22, 80, 443 configured
+-   **Systemd Service** - Auto-start on reboot
+-   **Deployment Scripts** - One-command updates
+-   **Health Checks** - Automatic monitoring
 
 ### Directory Structure:
 
@@ -73,10 +74,10 @@ This script will:
 
 1. Go to [Digital Ocean Droplets](https://cloud.digitalocean.com/droplets/new)
 2. Select:
-   - **Image:** Ubuntu 22.04 LTS
-   - **Plan:** Basic - $6/month (1GB RAM recommended)
-   - **Region:** Closest to your users
-   - **Authentication:** SSH key or password
+    - **Image:** Ubuntu 22.04 LTS
+    - **Plan:** Basic - $6/month (1GB RAM recommended)
+    - **Region:** Closest to your users
+    - **Authentication:** SSH key or password
 3. Click "Create Droplet"
 
 ### Option 2: SSH and Run Setup Script
@@ -104,6 +105,7 @@ nano /var/www/ai-cruel-backend/.env
 ```
 
 Required variables:
+
 ```bash
 # Supabase (from your dashboard)
 SUPABASE_URL=https://your-project.supabase.co
@@ -134,10 +136,11 @@ cd /var/www/ai-cruel-backend
 ```
 
 This will:
-- Pull latest code from GitHub
-- Build Docker containers
-- Start all services (FastAPI + Celery + Redis)
-- Show logs
+
+-   Pull latest code from GitHub
+-   Build Docker containers
+-   Start all services (FastAPI + Celery + Redis)
+-   Show logs
 
 ### 3. Verify Deployment
 
@@ -157,6 +160,7 @@ curl http://localhost:8000/health
 ## 🌐 Access Your API
 
 ### Via IP Address:
+
 ```
 http://YOUR_DROPLET_IP/
 http://YOUR_DROPLET_IP/docs
@@ -167,16 +171,16 @@ http://YOUR_DROPLET_IP/health
 
 1. **Point DNS A record** to your droplet IP
 2. **Update Nginx config**:
-   ```bash
-   nano /etc/nginx/sites-available/ai-cruel
-   # Change: server_name _; to server_name yourdomain.com;
-   nginx -t && systemctl reload nginx
-   ```
+    ```bash
+    nano /etc/nginx/sites-available/ai-cruel
+    # Change: server_name _; to server_name yourdomain.com;
+    nginx -t && systemctl reload nginx
+    ```
 3. **Get SSL certificate**:
-   ```bash
-   apt install certbot python3-certbot-nginx -y
-   certbot --nginx -d yourdomain.com
-   ```
+    ```bash
+    apt install certbot python3-certbot-nginx -y
+    certbot --nginx -d yourdomain.com
+    ```
 
 ---
 
@@ -278,19 +282,20 @@ su - deploy
 
 ## 💰 Cost Comparison
 
-| Plan | RAM | CPU | Storage | Price/Month |
-|------|-----|-----|---------|-------------|
-| Basic | 512MB | 1 | 10GB | $4 |
-| Basic | 1GB | 1 | 25GB | **$6** ⭐ |
-| Basic | 2GB | 1 | 50GB | $12 |
-| Basic | 2GB | 2 | 60GB | $18 |
+| Plan  | RAM   | CPU | Storage | Price/Month |
+| ----- | ----- | --- | ------- | ----------- |
+| Basic | 512MB | 1   | 10GB    | $4          |
+| Basic | 1GB   | 1   | 25GB    | **$6** ⭐   |
+| Basic | 2GB   | 1   | 50GB    | $12         |
+| Basic | 2GB   | 2   | 60GB    | $18         |
 
 **Recommended:** 1GB plan ($6/month) for production
 
 **Additional costs:**
-- Upstash Redis: Free (10k requests/day)
-- Supabase: Free (500MB database)
-- Total: **$6/month** + SMS/email usage
+
+-   Upstash Redis: Free (10k requests/day)
+-   Supabase: Free (500MB database)
+-   Total: **$6/month** + SMS/email usage
 
 ---
 
@@ -439,17 +444,17 @@ doctl compute droplet-action resize YOUR_DROPLET_ID --size s-2vcpu-2gb --resize-
 
 After setup, verify:
 
-- [ ] Droplet created and accessible via SSH
-- [ ] Docker and Nginx installed
-- [ ] Environment variables configured
-- [ ] Application deployed with `./deploy.sh`
-- [ ] Health endpoint returns 200: `curl http://localhost:8000/health`
-- [ ] API docs accessible: `curl http://localhost:8000/docs`
-- [ ] Celery tasks running (check logs)
-- [ ] Nginx reverse proxy working
-- [ ] Firewall configured (ports 22, 80, 443)
-- [ ] SSL certificate installed (if using domain)
-- [ ] Frontend CORS origin updated
+-   [ ] Droplet created and accessible via SSH
+-   [ ] Docker and Nginx installed
+-   [ ] Environment variables configured
+-   [ ] Application deployed with `./deploy.sh`
+-   [ ] Health endpoint returns 200: `curl http://localhost:8000/health`
+-   [ ] API docs accessible: `curl http://localhost:8000/docs`
+-   [ ] Celery tasks running (check logs)
+-   [ ] Nginx reverse proxy working
+-   [ ] Firewall configured (ports 22, 80, 443)
+-   [ ] SSL certificate installed (if using domain)
+-   [ ] Frontend CORS origin updated
 
 ---
 
@@ -466,11 +471,11 @@ After setup, verify:
 
 ## 📚 Resources
 
-- [Digital Ocean Documentation](https://docs.digitalocean.com/)
-- [Docker Compose Reference](https://docs.docker.com/compose/)
-- [Nginx Configuration Guide](https://nginx.org/en/docs/)
-- [Certbot Documentation](https://certbot.eff.org/)
-- [Main Deployment Guide](./DIGITAL_OCEAN_DEPLOYMENT.md)
+-   [Digital Ocean Documentation](https://docs.digitalocean.com/)
+-   [Docker Compose Reference](https://docs.docker.com/compose/)
+-   [Nginx Configuration Guide](https://nginx.org/en/docs/)
+-   [Certbot Documentation](https://certbot.eff.org/)
+-   [Main Deployment Guide](./DIGITAL_OCEAN_DEPLOYMENT.md)
 
 ---
 

@@ -73,6 +73,30 @@ async def debug_config():
         "env_vars_loaded": "REDIS_URL" in os.environ
     }
 
+@app.get("/debug/celery")
+async def debug_celery():
+    """Test if Celery is working"""
+    try:
+        from app.celery_app import celery_app
+        # Try to inspect Celery
+        inspect = celery_app.control.inspect()
+        active = inspect.active()
+        registered = inspect.registered()
+        stats = inspect.stats()
+        
+        return {
+            "celery_configured": True,
+            "broker_url": celery_app.conf.broker_url[:50] + "..." if celery_app.conf.broker_url else "NOT SET",
+            "workers_active": active is not None,
+            "registered_tasks": len(registered.get(list(registered.keys())[0], [])) if registered and registered.keys() else 0,
+            "workers_online": list(stats.keys()) if stats else []
+        }
+    except Exception as e:
+        return {
+            "celery_configured": False,
+            "error": str(e)
+        }
+
 if __name__ == "__main__":
     uvicorn.run(
         "main:app",

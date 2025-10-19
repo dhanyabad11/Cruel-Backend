@@ -10,12 +10,12 @@ This guide covers deploying your FastAPI backend to Digital Ocean App Platform w
 
 Before deploying, ensure you have:
 
-- [ ] Digital Ocean account ([Sign up here](https://cloud.digitalocean.com/registrations/new))
-- [ ] GitHub repository pushed with latest code
-- [ ] Supabase project created ([Supabase Dashboard](https://supabase.com/dashboard))
-- [ ] Redis instance (Upstash free tier or DO Managed Redis)
-- [ ] Twilio account for SMS/WhatsApp ([Twilio Console](https://console.twilio.com/))
-- [ ] SMTP credentials for email (Gmail App Password recommended)
+-   [ ] Digital Ocean account ([Sign up here](https://cloud.digitalocean.com/registrations/new))
+-   [ ] GitHub repository pushed with latest code
+-   [ ] Supabase project created ([Supabase Dashboard](https://supabase.com/dashboard))
+-   [ ] Redis instance (Upstash free tier or DO Managed Redis)
+-   [ ] Twilio account for SMS/WhatsApp ([Twilio Console](https://console.twilio.com/))
+-   [ ] SMTP credentials for email (Gmail App Password recommended)
 
 ---
 
@@ -24,21 +24,23 @@ Before deploying, ensure you have:
 ### Option 1: Digital Ocean App Platform (Recommended) ✅
 
 **Pros:**
-- Easy deployment from GitHub
-- Auto-scaling and managed infrastructure
-- Built-in SSL certificates
-- Simple environment variable management
-- Starting at $5/month
+
+-   Easy deployment from GitHub
+-   Auto-scaling and managed infrastructure
+-   Built-in SSL certificates
+-   Simple environment variable management
+-   Starting at $5/month
 
 **Best for:** Production deployments, managed infrastructure
 
 ### Option 2: Digital Ocean Droplet (VPS)
 
 **Pros:**
-- Full control over server
-- Potentially cheaper for high-traffic apps
-- Can install additional services
-- Starting at $4/month
+
+-   Full control over server
+-   Potentially cheaper for high-traffic apps
+-   Can install additional services
+-   Starting at $4/month
 
 **Best for:** Custom configurations, experienced DevOps users
 
@@ -80,33 +82,37 @@ git push origin main
 #### Via Web UI:
 
 1. **Go to App Platform**
-   - Visit [Digital Ocean App Platform](https://cloud.digitalocean.com/apps)
-   - Click "Create App"
+
+    - Visit [Digital Ocean App Platform](https://cloud.digitalocean.com/apps)
+    - Click "Create App"
 
 2. **Connect Repository**
-   - Choose "GitHub"
-   - Authorize Digital Ocean
-   - Select repository: `dhanyabad11/Cruel-Backend`
-   - Select branch: `main`
-   - Check "Autodeploy" (deploys on every push)
+
+    - Choose "GitHub"
+    - Authorize Digital Ocean
+    - Select repository: `dhanyabad11/Cruel-Backend`
+    - Select branch: `main`
+    - Check "Autodeploy" (deploys on every push)
 
 3. **Configure App**
-   - **Name:** `ai-cruel-backend`
-   - **Region:** Choose closest to your users (e.g., `New York`)
-   - **Type:** Web Service
-   - **Dockerfile Path:** `Dockerfile`
-   - **HTTP Port:** `8000`
+
+    - **Name:** `ai-cruel-backend`
+    - **Region:** Choose closest to your users (e.g., `New York`)
+    - **Type:** Web Service
+    - **Dockerfile Path:** `Dockerfile`
+    - **HTTP Port:** `8000`
 
 4. **Set Resource Size**
-   - **Basic (XXS):** $5/month - 512MB RAM, 1 vCPU (good for testing)
-   - **Basic (XS):** $12/month - 1GB RAM, 1 vCPU (recommended for production)
-   - **Basic (S):** $24/month - 2GB RAM, 2 vCPU (better performance)
+
+    - **Basic (XXS):** $5/month - 512MB RAM, 1 vCPU (good for testing)
+    - **Basic (XS):** $12/month - 1GB RAM, 1 vCPU (recommended for production)
+    - **Basic (S):** $24/month - 2GB RAM, 2 vCPU (better performance)
 
 5. **Add Environment Variables** (see below)
 
 6. **Review and Deploy**
-   - Click "Next" → "Review" → "Create Resources"
-   - Wait 5-10 minutes for build and deployment
+    - Click "Next" → "Review" → "Create Resources"
+    - Wait 5-10 minutes for build and deployment
 
 #### Via CLI (doctl):
 
@@ -181,14 +187,15 @@ LOG_LEVEL=INFO
 
 App Platform should auto-detect the health check from `app.yaml`, but verify:
 
-- **HTTP Path:** `/health`
-- **Port:** `8000`
-- **Initial Delay:** 60 seconds
-- **Timeout:** 5 seconds
+-   **HTTP Path:** `/health`
+-   **Port:** `8000`
+-   **Initial Delay:** 60 seconds
+-   **Timeout:** 5 seconds
 
 ### Step 6: Verify Deployment
 
 Once deployed, your app will be available at:
+
 ```
 https://ai-cruel-backend-xxxxx.ondigitalocean.app
 ```
@@ -213,16 +220,19 @@ curl -X POST https://your-app.ondigitalocean.app/api/auth/signup \
 View logs in real-time:
 
 **Via Dashboard:**
-- Go to your app in App Platform
-- Click "Runtime Logs" tab
-- Look for Celery worker and beat messages
+
+-   Go to your app in App Platform
+-   Click "Runtime Logs" tab
+-   Look for Celery worker and beat messages
 
 **Via CLI:**
+
 ```bash
 doctl apps logs YOUR_APP_ID --type run --follow
 ```
 
 You should see:
+
 ```
 ✅ Starting Celery Beat...
 ✅ Starting Celery Worker...
@@ -238,10 +248,10 @@ You should see:
 
 1. Go to [Create Droplet](https://cloud.digitalocean.com/droplets/new)
 2. Choose:
-   - **Image:** Ubuntu 22.04 LTS
-   - **Plan:** Basic ($4/month - 512MB or $6/month - 1GB recommended)
-   - **Region:** Same as Redis for low latency
-   - **Authentication:** SSH key (recommended) or password
+    - **Image:** Ubuntu 22.04 LTS
+    - **Plan:** Basic ($4/month - 512MB or $6/month - 1GB recommended)
+    - **Region:** Same as Redis for low latency
+    - **Authentication:** SSH key (recommended) or password
 3. Click "Create Droplet"
 
 ### Step 2: SSH into Droplet
@@ -359,26 +369,29 @@ ALLOWED_ORIGINS=https://your-frontend.vercel.app,https://your-app.ondigitalocean
 ### 2. Set Up Monitoring
 
 **App Platform has built-in monitoring:**
-- CPU usage
-- Memory usage
-- Response times
-- Error rates
+
+-   CPU usage
+-   Memory usage
+-   Response times
+-   Error rates
 
 **Set up alerts:**
+
 1. Go to App Platform → Your App → Alerts
 2. Add alert rules for:
-   - High CPU (> 80%)
-   - High memory (> 80%)
-   - App restart
-   - Deployment failure
+    - High CPU (> 80%)
+    - High memory (> 80%)
+    - App restart
+    - Deployment failure
 
 ### 3. Configure Backups
 
 **Supabase:** Automatic daily backups (free tier includes 7-day retention)
 
 **Digital Ocean:**
-- App Platform: Automatic git-based rollbacks
-- Droplet: Enable weekly backups ($1/month for $5 droplet)
+
+-   App Platform: Automatic git-based rollbacks
+-   Droplet: Enable weekly backups ($1/month for $5 droplet)
 
 ### 4. Set Up Domain (Optional)
 
@@ -393,23 +406,23 @@ ALLOWED_ORIGINS=https://your-frontend.vercel.app,https://your-app.ondigitalocean
 
 ### App Platform Deployment:
 
-| Service | Cost | Notes |
-|---------|------|-------|
-| DO App Platform | $5-12/month | 512MB-1GB RAM |
-| Upstash Redis | Free | 10,000 commands/day |
-| Supabase | Free | 500MB database |
-| Twilio | Pay-as-you-go | ~$0.01/SMS |
-| **Total** | **$5-12/month** | Plus usage costs |
+| Service         | Cost            | Notes               |
+| --------------- | --------------- | ------------------- |
+| DO App Platform | $5-12/month     | 512MB-1GB RAM       |
+| Upstash Redis   | Free            | 10,000 commands/day |
+| Supabase        | Free            | 500MB database      |
+| Twilio          | Pay-as-you-go   | ~$0.01/SMS          |
+| **Total**       | **$5-12/month** | Plus usage costs    |
 
 ### Droplet Deployment:
 
-| Service | Cost | Notes |
-|---------|------|-------|
-| DO Droplet | $4-6/month | 512MB-1GB RAM |
-| Upstash Redis | Free | 10,000 commands/day |
-| Supabase | Free | 500MB database |
-| Twilio | Pay-as-you-go | ~$0.01/SMS |
-| **Total** | **$4-6/month** | Plus usage costs |
+| Service       | Cost           | Notes               |
+| ------------- | -------------- | ------------------- |
+| DO Droplet    | $4-6/month     | 512MB-1GB RAM       |
+| Upstash Redis | Free           | 10,000 commands/day |
+| Supabase      | Free           | 500MB database      |
+| Twilio        | Pay-as-you-go  | ~$0.01/SMS          |
+| **Total**     | **$4-6/month** | Plus usage costs    |
 
 ---
 
@@ -418,12 +431,14 @@ ALLOWED_ORIGINS=https://your-frontend.vercel.app,https://your-app.ondigitalocean
 ### Build Fails
 
 **Error:** `Cannot find module 'X'`
+
 ```bash
 # Check requirements.txt includes all dependencies
 pip freeze > requirements.txt
 ```
 
 **Error:** `gcc: command not found`
+
 ```bash
 # Dockerfile already includes build tools
 # Ensure using python:3.10-slim base image
@@ -432,54 +447,63 @@ pip freeze > requirements.txt
 ### Celery Not Starting
 
 **Check logs:**
+
 ```bash
 doctl apps logs YOUR_APP_ID | grep -i celery
 ```
 
 **Common issues:**
-- Redis URL incorrect (check format: `rediss://` vs `redis://`)
-- Missing REDIS_URL environment variable
-- Redis instance not accessible from DO region
+
+-   Redis URL incorrect (check format: `rediss://` vs `redis://`)
+-   Missing REDIS_URL environment variable
+-   Redis instance not accessible from DO region
 
 **Fix:**
-- Verify REDIS_URL in App Platform settings
-- Test Redis connection: `redis-cli -u $REDIS_URL ping`
+
+-   Verify REDIS_URL in App Platform settings
+-   Test Redis connection: `redis-cli -u $REDIS_URL ping`
 
 ### SSL Certificate Errors (rediss://)
 
 **Error:** `ssl_cert_reqs parameter required`
-- Already fixed in code (see `app/celery_app.py`)
-- Ensure using latest code from GitHub
+
+-   Already fixed in code (see `app/celery_app.py`)
+-   Ensure using latest code from GitHub
 
 ### App Crashes After Deployment
 
 **Check health endpoint:**
+
 ```bash
 curl https://your-app.ondigitalocean.app/health
 ```
 
 **View runtime logs:**
-- App Platform → Your App → Runtime Logs
-- Look for Python errors or missing environment variables
+
+-   App Platform → Your App → Runtime Logs
+-   Look for Python errors or missing environment variables
 
 **Common issues:**
-- Missing required environment variables
-- Database connection failed (check DATABASE_URL)
-- Port mismatch (should be 8000)
+
+-   Missing required environment variables
+-   Database connection failed (check DATABASE_URL)
+-   Port mismatch (should be 8000)
 
 ### High Memory Usage
 
 **Symptoms:**
-- App restarts frequently
-- Out of memory errors
+
+-   App restarts frequently
+-   Out of memory errors
 
 **Solutions:**
-- Upgrade to larger plan (1GB or 2GB)
-- Optimize Celery worker concurrency:
-  ```bash
-  # In start_services.py, add:
-  '--concurrency=2',  # Limit worker threads
-  ```
+
+-   Upgrade to larger plan (1GB or 2GB)
+-   Optimize Celery worker concurrency:
+    ```bash
+    # In start_services.py, add:
+    '--concurrency=2',  # Limit worker threads
+    ```
 
 ---
 
@@ -523,6 +547,7 @@ doctl apps create-deployment YOUR_APP_ID --revert DEPLOYMENT_ID
 ### Scale Resources
 
 Via Dashboard:
+
 1. Go to App Platform → Your App
 2. Click "Edit Plan"
 3. Select new instance size
@@ -534,18 +559,18 @@ Via Dashboard:
 
 Before going live:
 
-- [ ] All environment variables configured
-- [ ] Health check returns `{"status":"healthy"}`
-- [ ] API docs accessible at `/docs`
-- [ ] User signup/signin working
-- [ ] Celery tasks appearing in logs
-- [ ] Email notifications sending
-- [ ] SMS/WhatsApp notifications working (if configured)
-- [ ] Portal scraping running every 30 minutes
-- [ ] CORS configured with frontend URL
-- [ ] Custom domain configured (if using)
-- [ ] Monitoring alerts set up
-- [ ] Backup strategy confirmed
+-   [ ] All environment variables configured
+-   [ ] Health check returns `{"status":"healthy"}`
+-   [ ] API docs accessible at `/docs`
+-   [ ] User signup/signin working
+-   [ ] Celery tasks appearing in logs
+-   [ ] Email notifications sending
+-   [ ] SMS/WhatsApp notifications working (if configured)
+-   [ ] Portal scraping running every 30 minutes
+-   [ ] CORS configured with frontend URL
+-   [ ] Custom domain configured (if using)
+-   [ ] Monitoring alerts set up
+-   [ ] Backup strategy confirmed
 
 ---
 
@@ -562,12 +587,12 @@ Before going live:
 
 ## 📚 Useful Links
 
-- [Digital Ocean App Platform Docs](https://docs.digitalocean.com/products/app-platform/)
-- [doctl CLI Reference](https://docs.digitalocean.com/reference/doctl/)
-- [FastAPI Deployment Guide](https://fastapi.tiangolo.com/deployment/)
-- [Celery Documentation](https://docs.celeryq.dev/)
-- [Supabase Documentation](https://supabase.com/docs)
-- [Upstash Redis Documentation](https://docs.upstash.com/redis)
+-   [Digital Ocean App Platform Docs](https://docs.digitalocean.com/products/app-platform/)
+-   [doctl CLI Reference](https://docs.digitalocean.com/reference/doctl/)
+-   [FastAPI Deployment Guide](https://fastapi.tiangolo.com/deployment/)
+-   [Celery Documentation](https://docs.celeryq.dev/)
+-   [Supabase Documentation](https://supabase.com/docs)
+-   [Upstash Redis Documentation](https://docs.upstash.com/redis)
 
 ---
 

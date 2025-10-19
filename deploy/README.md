@@ -8,11 +8,12 @@ cd /Users/dhanyabad/code2/cruel/ai-cruel/backend
 ```
 
 This will automatically:
-- ✅ Create a new Digital Ocean droplet
-- ✅ Install Docker, Nginx, and all dependencies
-- ✅ Configure firewall and security
-- ✅ Set up auto-deployment scripts
-- ✅ Get your backend running in ~10 minutes!
+
+-   ✅ Create a new Digital Ocean droplet
+-   ✅ Install Docker, Nginx, and all dependencies
+-   ✅ Configure firewall and security
+-   ✅ Set up auto-deployment scripts
+-   ✅ Get your backend running in ~10 minutes!
 
 **Cost:** Starting at $4/month (recommended: $6/month for 1GB RAM)
 
@@ -21,28 +22,31 @@ This will automatically:
 ## 📋 Prerequisites
 
 1. **Install doctl CLI:**
-   ```bash
-   brew install doctl  # macOS
-   ```
+
+    ```bash
+    brew install doctl  # macOS
+    ```
 
 2. **Authenticate:**
-   ```bash
-   doctl auth init
-   ```
-   Get your API token from: https://cloud.digitalocean.com/account/api/tokens
+
+    ```bash
+    doctl auth init
+    ```
+
+    Get your API token from: https://cloud.digitalocean.com/account/api/tokens
 
 3. **Create SSH key (optional but recommended):**
-   ```bash
-   doctl compute ssh-key list
-   ```
+    ```bash
+    doctl compute ssh-key list
+    ```
 
 ---
 
 ## 📖 Documentation
 
-- **Quick Start Guide:** [deploy/DROPLET_QUICK_START.md](./DROPLET_QUICK_START.md)
-- **Full Deployment Guide:** [DIGITAL_OCEAN_DEPLOYMENT.md](./DIGITAL_OCEAN_DEPLOYMENT.md)
-- **App Platform Spec:** [.do/app.yaml](../.do/app.yaml)
+-   **Quick Start Guide:** [deploy/DROPLET_QUICK_START.md](./DROPLET_QUICK_START.md)
+-   **Full Deployment Guide:** [DIGITAL_OCEAN_DEPLOYMENT.md](./DIGITAL_OCEAN_DEPLOYMENT.md)
+-   **App Platform Spec:** [.do/app.yaml](../.do/app.yaml)
 
 ---
 
@@ -56,12 +60,12 @@ This will automatically:
 
 ### Features:
 
-- 🐳 **Docker** - Containerized deployment
-- 🌐 **Nginx** - Reverse proxy with SSL support
-- 🔒 **UFW Firewall** - Automated security configuration
-- 🔄 **Auto-restart** - Systemd service for reliability
-- 📊 **Health checks** - Automatic monitoring
-- 📝 **Logging** - Centralized log management
+-   🐳 **Docker** - Containerized deployment
+-   🌐 **Nginx** - Reverse proxy with SSL support
+-   🔒 **UFW Firewall** - Automated security configuration
+-   🔄 **Auto-restart** - Systemd service for reliability
+-   📊 **Health checks** - Automatic monitoring
+-   📝 **Logging** - Centralized log management
 
 ---
 
@@ -72,6 +76,7 @@ This will automatically:
 **Best for:** Full control, lower cost, custom configuration
 
 **Steps:**
+
 1. Run `./deploy/create-droplet.sh`
 2. Wait ~10 minutes
 3. SSH in and edit `.env`
@@ -85,6 +90,7 @@ This will automatically:
 **Best for:** Managed infrastructure, zero DevOps
 
 **Steps:**
+
 1. Push code to GitHub
 2. Create app in App Platform dashboard
 3. Configure environment variables
@@ -150,37 +156,37 @@ docker-compose ps
 
 ## 💰 Total Monthly Cost
 
-| Service | Provider | Cost |
-|---------|----------|------|
-| Droplet (1GB) | Digital Ocean | $6/month |
-| Database | Supabase | Free |
-| Redis | Upstash | Free |
-| Email | Gmail SMTP | Free |
-| SMS/WhatsApp | Twilio | Pay-as-go (~$0.01/msg) |
-| **Total** | | **~$6/month** |
+| Service       | Provider      | Cost                   |
+| ------------- | ------------- | ---------------------- |
+| Droplet (1GB) | Digital Ocean | $6/month               |
+| Database      | Supabase      | Free                   |
+| Redis         | Upstash       | Free                   |
+| Email         | Gmail SMTP    | Free                   |
+| SMS/WhatsApp  | Twilio        | Pay-as-go (~$0.01/msg) |
+| **Total**     |               | **~$6/month**          |
 
 ---
 
 ## 🆘 Need Help?
 
-- 📖 **Full Guide:** [DIGITAL_OCEAN_DEPLOYMENT.md](./DIGITAL_OCEAN_DEPLOYMENT.md)
-- 🚀 **Quick Start:** [deploy/DROPLET_QUICK_START.md](./deploy/DROPLET_QUICK_START.md)
-- 🐛 **Troubleshooting:** See troubleshooting sections in guides above
+-   📖 **Full Guide:** [DIGITAL_OCEAN_DEPLOYMENT.md](./DIGITAL_OCEAN_DEPLOYMENT.md)
+-   🚀 **Quick Start:** [deploy/DROPLET_QUICK_START.md](./deploy/DROPLET_QUICK_START.md)
+-   🐛 **Troubleshooting:** See troubleshooting sections in guides above
 
 ---
 
 ## ✅ Deployment Checklist
 
-- [ ] Install doctl CLI
-- [ ] Authenticate with Digital Ocean
-- [ ] Run `./deploy/create-droplet.sh`
-- [ ] Wait for setup to complete
-- [ ] SSH in and configure `.env`
-- [ ] Run `./deploy.sh`
-- [ ] Test API endpoints
-- [ ] Set up domain (optional)
-- [ ] Get SSL certificate (optional)
-- [ ] Update frontend with new API URL
+-   [ ] Install doctl CLI
+-   [ ] Authenticate with Digital Ocean
+-   [ ] Run `./deploy/create-droplet.sh`
+-   [ ] Wait for setup to complete
+-   [ ] SSH in and configure `.env`
+-   [ ] Run `./deploy.sh`
+-   [ ] Test API endpoints
+-   [ ] Set up domain (optional)
+-   [ ] Get SSL certificate (optional)
+-   [ ] Update frontend with new API URL
 
 ---
 

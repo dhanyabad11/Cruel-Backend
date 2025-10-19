@@ -18,16 +18,15 @@ async def get_portals(
     """Get all portals for the current user from Supabase"""
     try:
         print(f"DEBUG: Current user in portals: {current_user}")
-        # Return proper array format for frontend compatibility  
-        return []  # Return empty array directly - frontend expects this format
-        
-        # Original logic commented out for now
-        # result = supabase.table('portals').select('*').eq('user_id', current_user['id']).execute()
-        # portals = result.data or []
-        # return [PortalResponse(**portal) for portal in portals]
+        # Fetch portals from Supabase
+        result = supabase.table('portals').select('*').eq('user_id', current_user['id']).execute()
+        portals = result.data or []
+        print(f"DEBUG: Found {len(portals)} portals for user")
+        return portals  # Return array directly - frontend expects this format
     except Exception as e:
         print(f"DEBUG: Error in portals endpoint: {e}")
-        raise HTTPException(status_code=500, detail=f"Internal error: {str(e)}")
+        # Return empty array on error instead of raising exception
+        return []
 
 @router.post("/", response_model=PortalResponse, status_code=status.HTTP_201_CREATED)
 async def create_portal(
