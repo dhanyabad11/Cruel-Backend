@@ -96,13 +96,16 @@ class AuthService:
             })
             
             if response.user and response.session:
+                user_metadata = response.user.user_metadata or {}
                 return {
                     "user": {
                         "id": response.user.id,
                         "email": response.user.email,
                         "email_confirmed": response.user.email_confirmed_at is not None,
+                        "full_name": user_metadata.get("full_name", ""),
                         "created_at": response.user.created_at,
-                        "last_sign_in": response.user.last_sign_in_at
+                        "last_sign_in": response.user.last_sign_in_at,
+                        "is_active": True
                     },
                     "access_token": response.session.access_token,
                     "refresh_token": response.session.refresh_token,
@@ -148,13 +151,16 @@ class AuthService:
             response = self.supabase.auth.get_user(access_token)
             
             if response.user:
+                user_metadata = response.user.user_metadata or {}
                 return {
                     "id": response.user.id,
                     "email": response.user.email,
                     "email_confirmed": response.user.email_confirmed_at is not None,
-                    "user_metadata": response.user.user_metadata or {},
+                    "full_name": user_metadata.get("full_name", ""),
+                    "user_metadata": user_metadata,
                     "created_at": response.user.created_at,
-                    "last_sign_in": response.user.last_sign_in_at
+                    "last_sign_in": response.user.last_sign_in_at,
+                    "is_active": True
                 }
             else:
                 return None
