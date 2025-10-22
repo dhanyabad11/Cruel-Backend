@@ -27,6 +27,10 @@ class EmailVerification(BaseModel):
     token: str
     type: str = "signup"
 
+class OAuthProvider(BaseModel):
+    provider: str
+    redirect_url: Optional[str] = None
+
 @router.post("/signup", status_code=status.HTTP_201_CREATED)
 async def sign_up(user_data: UserSignUp) -> Dict[str, Any]:
     """
@@ -127,6 +131,22 @@ async def verify_email(verification_data: EmailVerification) -> Dict[str, str]:
         token=verification_data.token,
         type=verification_data.type
     )
+    return result
+
+@router.post("/oauth/google")
+async def google_oauth(redirect_url: Optional[str] = None) -> Dict[str, Any]:
+    """
+    Get Google OAuth URL for sign in
+    """
+    result = await auth_service.get_oauth_url("google", redirect_url or "http://localhost:3000/auth/callback")
+    return result
+
+@router.post("/oauth/callback")
+async def oauth_callback(code: str, provider: str = "google") -> Dict[str, Any]:
+    """
+    Handle OAuth callback and exchange code for session
+    """
+    result = await auth_service.handle_oauth_callback(code)
     return result
 
 @router.get("/me", dependencies=[])

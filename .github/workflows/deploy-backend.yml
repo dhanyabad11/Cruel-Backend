@@ -1,49 +1,49 @@
 name: Deploy Backend to Digital Ocean
 
 on:
-  push:
-    branches:
-      - main
-  workflow_dispatch:
+    push:
+        branches:
+            - main
+    workflow_dispatch:
 
 jobs:
-  deploy:
-    runs-on: ubuntu-latest
-    
-    steps:
-      - name: 🚀 Deploy to Digital Ocean Droplet
-        uses: appleboy/ssh-action@master
-        with:
-          host: ${{ secrets.DROPLET_IP }}
-          username: root
-          key: ${{ secrets.DROPLET_SSH_KEY }}
-          script: |
-            cd /var/www/ai-cruel-backend
-            echo "📥 Pulling latest code..."
-            git pull origin main
-            
-            echo "🛑 Stopping containers..."
-            docker-compose down
-            
-            echo "🔨 Building new images..."
-            docker-compose build --no-cache
-            
-            echo "🚀 Starting containers..."
-            docker-compose up -d
-            
-            echo "✅ Deployment complete!"
-            docker-compose ps
-            
-            echo "📋 Checking logs..."
-            docker-compose logs --tail=50
-      
-      - name: 🏥 Health Check
-        run: |
-          sleep 10
-          response=$(curl -s -o /dev/null -w "%{http_code}" http://${{ secrets.DROPLET_IP }}/health)
-          if [ $response -eq 200 ]; then
-            echo "✅ Backend is healthy!"
-          else
-            echo "❌ Backend health check failed!"
-            exit 1
-          fi
+    deploy:
+        runs-on: ubuntu-latest
+
+        steps:
+            - name: 🚀 Deploy to Digital Ocean Droplet
+              uses: appleboy/ssh-action@master
+              with:
+                  host: ${{ secrets.DROPLET_IP }}
+                  username: root
+                  key: ${{ secrets.DROPLET_SSH_KEY }}
+                  script: |
+                      cd /var/www/ai-cruel-backend
+                      echo "📥 Pulling latest code..."
+                      git pull origin main
+
+                      echo "🛑 Stopping containers..."
+                      docker-compose down
+
+                      echo "🔨 Building new images..."
+                      docker-compose build --no-cache
+
+                      echo "🚀 Starting containers..."
+                      docker-compose up -d
+
+                      echo "✅ Deployment complete!"
+                      docker-compose ps
+
+                      echo "📋 Checking logs..."
+                      docker-compose logs --tail=50
+
+            - name: 🏥 Health Check
+              run: |
+                  sleep 10
+                  response=$(curl -s -o /dev/null -w "%{http_code}" http://${{ secrets.DROPLET_IP }}/health)
+                  if [ $response -eq 200 ]; then
+                    echo "✅ Backend is healthy!"
+                  else
+                    echo "❌ Backend health check failed!"
+                    exit 1
+                  fi

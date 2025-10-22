@@ -232,6 +232,72 @@ class AuthService:
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Invalid or expired verification token"
             )
+    
+    async def get_oauth_url(self, provider: str, redirect_url: str) -> Dict[str, Any]:
+        """Get OAuth URL for provider (Google, GitHub, etc.) - PRODUCTION LEVEL"""
+        try:
+            print(f"Getting OAuth URL for provider: {provider}")
+            
+            response = self.supabase.auth.sign_in_with_oauth({
+                "provider": provider,
+                "options": {
+                    "redirect_to": redirect_url
+                }
+            })
+            
+            return {
+                "url": response.url,
+                "provider": provider
+            }
+            
+        except Exception as e:
+            logger.error(f"OAuth URL generation error: {str(e)}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Failed to generate OAuth URL: {str(e)}"
+            )
+    
+    async def handle_oauth_callback(self, code: str) -> Dict[str, Any]:
+        """Handle OAuth callback and exchange code for session - PRODUCTION LEVEL"""
+        try:
+            print(f"Handling OAuth callback with code: {code[:50]}...")
+            
+            # Exchange code for session
+            response = self.supabase.auth.exchange_code_for_session(code)
+            
+            if response.user and response.session:
+                user_metadata = response.user.user_metadata or {}
+                return {
+                    "user": {
+                        "id": response.user.id,
+                        "email": response.user.email,
+                        "email_confirmed": response.user.email_confirmed_at is not None,
+                        "full_name": user_metadata.get("full_name") or user_metadata.get("name", ""),
+                        "avatar_url": user_metadata.get("avatar_url", ""),
+                        "created_at": response.user.created_at,
+                        "last_sign_in": response.user.last_sign_in_at,
+                        "is_active": True
+                    },
+                    "access_token": response.session.access_token,
+                    "refresh_token": response.session.refresh_token,
+                    "token_type": "bearer",
+                    "expires_in": response.session.expires_in,
+                    "message": "OAuth sign in successful"
+                }
+            else:
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="OAuth authentication failed"
+                )
+                
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.error(f"OAuth callback error: {str(e)}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"OAuth callback failed: {str(e)}"
+            )
 
 # Create singleton instance
 auth_service = AuthService()
