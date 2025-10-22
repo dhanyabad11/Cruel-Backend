@@ -133,12 +133,15 @@ async def verify_email(verification_data: EmailVerification) -> Dict[str, str]:
     )
     return result
 
+class OAuthRequest(BaseModel):
+    redirect_url: Optional[str] = None
+
 @router.post("/oauth/google")
-async def google_oauth(redirect_url: Optional[str] = None) -> Dict[str, Any]:
+async def google_oauth(request: OAuthRequest) -> Dict[str, Any]:
     """
     Get Google OAuth URL for sign in
     """
-    result = await auth_service.get_oauth_url("google", redirect_url or "http://localhost:3000/auth/callback")
+    result = await auth_service.get_oauth_url("google", request.redirect_url or "http://localhost:3000/auth/callback")
     return result
 
 @router.post("/oauth/callback")
