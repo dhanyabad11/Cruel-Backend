@@ -4,34 +4,32 @@ Celery Task: Supabase-based Deadline Reminders
 import os
 import asyncio
 from datetime import datetime, timedelta
-from celery import Celery
+from dotenv import load_dotenv
+from celery import shared_task
 from supabase import create_client, Client
+from app.config import settings
 from app.services.notification_service import get_notification_service, NotificationType
 from app.services.email_service import send_email
 
-# Celery configuration
-CELERY_BROKER_URL = os.getenv("CELERY_BROKER_URL", "redis://localhost:6379/0")
-CELERY_RESULT_BACKEND = os.getenv("CELERY_RESULT_BACKEND", "redis://localhost:6379/0")
-
-celery_app = Celery(
-    "supabase_notification_tasks",
-    broker=CELERY_BROKER_URL,
-    backend=CELERY_RESULT_BACKEND
-)
-
-SUPABASE_URL = os.getenv("SUPABASE_URL")
-SUPABASE_KEY = os.getenv("SUPABASE_SERVICE_KEY")
+# Load environment variables
+load_dotenv()
 
 # Create Supabase client lazily to avoid import-time errors
 def get_supabase_client():
-    if not SUPABASE_URL or not SUPABASE_KEY:
-        raise ValueError("SUPABASE_URL and SUPABASE_SERVICE_KEY environment variables must be set")
+    supabase_url = settings.SUPABASE_URL
+    supabase_key = settings.SUPABASE_SERVICE_KEY
+    
+    if not supabase_url or not supabase_key:
+        raise ValueError("SUPABASE_URL and SUPABASE_SERVICE_KEY must be set in config")
+    
     return create_client(
-        supabase_url=SUPABASE_URL,
-        supabase_key=SUPABASE_KEY
+        supabase_url=supabase_url,
+        supabase_key=supabase_key
     )
 
-@celery_app.task(name="send_supabase_deadline_reminders")
+
+
+@shared_task(name="send_supabase_deadline_reminders")
 def send_supabase_deadline_reminders():
     """
     Celery task to send reminders for upcoming/overdue deadlines using Supabase.
@@ -76,7 +74,9 @@ def send_supabase_deadline_reminders():
     return {"success": True, "message": "Reminders sent."}
 
 
-@celery_app.task(name="send_deadline_reminder")
+
+
+@shared_task(name="send_deadline_reminder")
 def send_deadline_reminder(deadline_id: int):
     """
     Send a reminder for a specific deadline.
@@ -117,7 +117,7 @@ def send_deadline_reminder(deadline_id: int):
         return {"success": False, "error": str(e)}
 
 
-@celery_app.task(name="check_and_send_email_reminders")
+@shared_task(name="check_and_send_email_reminders")
 def check_and_send_email_reminders():
     """
     Check for deadlines and send email reminders based on notification_settings and notification_reminders.
@@ -125,7 +125,7 @@ def check_and_send_email_reminders():
     Supports relative times like: 1_hour, 1_day, 1_week before deadline.
     """
     supabase = get_supabase_client()
-    now = datetime.utcnow()
+    now = datetime.utcnow().replace(tzinfo=None)  # Make timezone-naive for comparison
     
     print(f"[EMAIL REMINDERS] Running at {now.isoformat()}")
     
@@ -182,6 +182,10 @@ def check_and_send_email_reminders():
             for deadline in deadlines:
                 try:
                     deadline_date = datetime.fromisoformat(deadline['due_date'].replace('Z', '+00:00'))
+                    # Make timezone-naive for comparison
+                    if deadline_date.tzinfo:
+                        deadline_date = deadline_date.replace(tzinfo=None)
+                    
                     time_until_deadline = deadline_date - now
                     
                     # Check if we should send reminder for any configured time
