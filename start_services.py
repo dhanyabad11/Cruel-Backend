@@ -36,6 +36,7 @@ def start_processes():
         worker_process = subprocess.Popen([
             'celery', '-A', 'app.celery_app', 'worker',
             '--loglevel=info',
+            '--pool=solo',
             '-Q', 'default,notifications,scraping'
         ])
         processes.append(('worker', worker_process))
