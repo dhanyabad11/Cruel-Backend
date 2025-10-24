@@ -16,8 +16,7 @@ from enum import Enum
 from email.mime.text import MIMEText as MimeText
 from email.mime.multipart import MIMEMultipart as MimeMultipart
 import asyncio
-import aiosmtplib
-from email.message import EmailMessage
+import httpx
 
 from twilio.rest import Client
 from twilio.base.exceptions import TwilioException
@@ -114,7 +113,7 @@ class EnhancedNotificationService:
                                     body: str,
                                     html_body: Optional[str] = None) -> Dict[str, Any]:
         """
-        Send email notification using SMTP.
+        Send email notification using SendGrid API.
         
         Args:
             to_email: Recipient email address
@@ -126,28 +125,44 @@ class EnhancedNotificationService:
             Dict containing notification result
         """
         try:
-            if not all([self.smtp_host, self.smtp_port, self.smtp_username, self.smtp_password]):
-                raise ValueError("Email configuration incomplete")
+            # Get SendGrid credentials
+            sendgrid_api_key = os.getenv("SENDGRID_API_KEY")
+            from_email = os.getenv("SENDGRID_FROM_EMAIL", self.smtp_username)
             
-            msg = EmailMessage()
-            msg["From"] = self.smtp_username
-            msg["To"] = to_email
-            msg["Subject"] = subject
-            msg.set_content(body)
+            if not sendgrid_api_key:
+                raise ValueError("SENDGRID_API_KEY environment variable is required")
             
+            # SendGrid API endpoint
+            url = "https://api.sendgrid.com/v3/mail/send"
+            
+            # Build email payload
+            content = [{"type": "text/plain", "value": body}]
             if html_body:
-                msg.add_alternative(html_body, subtype='html')
+                content.append({"type": "text/html", "value": html_body})
             
-            await aiosmtplib.send(
-                msg,
-                hostname=self.smtp_host,
-                port=self.smtp_port,
-                username=self.smtp_username,
-                password=self.smtp_password,
-                start_tls=True,
-            )
+            payload = {
+                "personalizations": [
+                    {
+                        "to": [{"email": to_email}],
+                        "subject": subject
+                    }
+                ],
+                "from": {"email": from_email},
+                "content": content
+            }
             
-            self.logger.info(f"Email sent successfully to {to_email}")
+            headers = {
+                "Authorization": f"Bearer {sendgrid_api_key}",
+                "Content-Type": "application/json"
+            }
+            
+            async with httpx.AsyncClient() as client:
+                response = await client.post(url, json=payload, headers=headers)
+                
+                if response.status_code not in [200, 202]:
+                    raise Exception(f"SendGrid API error: {response.status_code} - {response.text}")
+            
+            self.logger.info(f"Email sent successfully to {to_email} via SendGrid")
             return {
                 "success": True,
                 "message": "Email sent successfully",
